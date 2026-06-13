@@ -9,14 +9,15 @@ group = "com.engram"
 version = "0.1.0-SNAPSHOT"
 
 java {
-    toolchain { languageVersion = JavaLanguageVersion.of(21) }
+    toolchain { languageVersion.set(JavaLanguageVersion.of(21)) }
 }
 
 repositories { mavenCentral() }
 
 dependencies {
-    // Spring Boot core (brings Jackson + logging). No web: the spike is a CLI runner.
+    // Spring Boot core + JSON (Jackson databind). No web: the spike is a CLI runner.
     implementation("org.springframework.boot:spring-boot-starter")
+    implementation("com.fasterxml.jackson.core:jackson-databind")
 }
 
 tasks.withType<Test> { useJUnitPlatform() }

@@ -29,7 +29,7 @@ When finishing:
 
 ## Current Focus
 
-ENG-1 de-risking spike: prove real cost/activation and generation quality before any Phase 1 code. Gate task — nothing downstream is trustworthy until this reports numbers.
+Phase 1 unblocked. ENG-1 passed: cost and quality acceptable. Next: ENG-2 Postgres schema.
 
 ---
 
@@ -39,7 +39,7 @@ Work currently underway. One entry per concrete unit of work (feature, file, mig
 
 | Date Started | Item | Owner / Branch | Status Notes |
 |--------------|------|----------------|--------------|
-| 2026-06-12 | ENG-1: de-risking spike | master | Backend scaffold exists (`backend/`). Need to set real Anthropic prices in `ModelTier.java`, export API key, run `./gradlew bootRun --args="sample-note.md"`, eyeball card quality, record cost/activation. |
+| *(none)* | | | |
 
 ---
 
@@ -47,9 +47,9 @@ Work currently underway. One entry per concrete unit of work (feature, file, mig
 
 Most recent at the top. Trim aggressively — anything older than the current milestone can be archived to `progress-archive.md` or deleted.
 
-### YYYY-MM-DD
+### 2026-06-12
 
-- *(no completed work yet)*
+- **ENG-1: de-risking spike** — PASSED. Spike ran end-to-end on `sample-note.md`. Cost: $0.006/activation (~$3/mo at 500 activations, target <$9). Card quality: Q atomic + genuine recall, A faithful to note, distractors plausible-but-wrong. Build fixes: added `jackson-databind` dep, fixed Gradle 7 toolchain syntax, generated `gradlew` wrapper. Unblocks all Phase 1 work.
 
 ---
 
@@ -57,7 +57,7 @@ Most recent at the top. Trim aggressively — anything older than the current mi
 
 Planned but not started. Group by area (`apps/web`, `services/billing`, `infra`, etc.) so it's easy to scan. Order within each group reflects priority.
 
-### backend/ (Phase 1 — blocked on ENG-1)
+### backend/ (Phase 1 — unblocked 2026-06-12)
 
 - ENG-2: Postgres schema — `review_event`, `concept_scheduler_state`, `review_event_answer_payload`
 - ENG-3: Source Adapter + folder/markdown ingest → `IngestedDocument`
@@ -65,11 +65,11 @@ Planned but not started. Group by area (`apps/web`, `services/billing`, `infra`,
 - ENG-5: FSRS engine behind `retrievability()` interface
 - ENG-6: Self-graded review surface (cloze)
 
-### apps/web (Phase 1 — blocked on ENG-1)
+### apps/web (Phase 1 — unblocked 2026-06-12)
 
 - ENG-7: Living dashboard (cold-start + steady modes)
 
-### backend/ (Phase 2 — blocked on ENG-1)
+### backend/ (Phase 2)
 
 - ENG-8: Deep activation pipeline (candidate → card, with RAG + vault-sourced distractors)
 - ENG-9: MCQ format + AI grading (contestable)

@@ -14,10 +14,10 @@ package com.engram.spike.llm;
 public enum ModelTier {
 
     /** Cheap/fast tier — Extractor, candidate pass, cloze, grading, Professor. */
-    CHEAP("claude-haiku-4-5-20251001", 0.0, 0.0),
+    CHEAP("claude-haiku-4-5-20251001", 1.00, 5.00),
 
     /** Expensive tier — Distractor only. */
-    EXPENSIVE("claude-sonnet-4-6", 0.0, 0.0);
+    EXPENSIVE("claude-sonnet-4-6", 3.00, 15.00);
 
     public final String modelId;
     public final double inputPricePerMTok;   // USD per 1,000,000 input tokens  — TODO: set from current pricing
