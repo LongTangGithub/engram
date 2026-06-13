@@ -1,0 +1,15 @@
+# Java / Gradle
+.gradle/
+build/
+*.class
+# IDE
+.idea/
+*.iml
+.vscode/
+# Env / secrets
+.env
+*.local
+# OS
+.DS_Store
+# Spike output
+spike-output/
