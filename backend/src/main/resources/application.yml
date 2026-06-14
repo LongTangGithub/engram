@@ -1,8 +1,22 @@
+server:
+  port: 8081
+
 spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/engram
+    username: engram
+    password: engram
+  flyway:
+    enabled: true
   main:
-    # The spike is a command-line runner, not a web server.
-    web-application-type: none
     banner-mode: "off"
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
 logging:
   level:
     root: WARN

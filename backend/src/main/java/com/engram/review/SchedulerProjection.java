@@ -76,8 +76,8 @@ public class SchedulerProjection {
         );
     }
 
-    /** Reads the current projection row from the DB. Package-visible for tests. */
-    ConceptSchedulerState read(UUID conceptId, UUID userId) {
+    /** Reads the current projection row from the DB. Null if no review has been recorded yet. */
+    public ConceptSchedulerState read(UUID conceptId, UUID userId) {
         return findByConceptAndUser(conceptId, userId);
     }
 
