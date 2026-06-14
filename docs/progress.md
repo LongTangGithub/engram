@@ -29,7 +29,7 @@ When finishing:
 
 ## Current Focus
 
-ENG-2 done. Next: ENG-3 (Source Adapter + folder/markdown ingest) or ENG-5 (FSRS engine).
+ENG-3 done. Next: ENG-4 (lightweight candidate extraction) or ENG-5 (FSRS engine).
 
 ---
 
@@ -47,6 +47,10 @@ Work currently underway. One entry per concrete unit of work (feature, file, mig
 
 Most recent at the top. Trim aggressively — anything older than the current milestone can be archived to `progress-archive.md` or deleted.
 
+### 2026-06-13
+
+- **ENG-3: Source Adapter + Obsidian folder ingest** — COMPLETE. 7/7 new tests pass (pure filesystem, @TempDir, no DB). Verified: scan nested .md files with correct sourceRef/title/content/lastModified; ignores non-.md + .obsidian/.git/.trash; hash stable for identical content, changes on 1-byte diff; SyncDiff classifies added/changed/unchanged/removed correctly; empty folder → empty list; missing folder → IllegalArgumentException. Package invariant documented in `com/engram/ingest/CLAUDE.md`. No DB dependency (persistence-agnostic by design).
+
 ### 2026-06-12
 
 - **ENG-2: Postgres event log + projection** — COMPLETE. 5/5 tests pass (embedded-postgres, no Docker). Verified: append-only trigger rejects UPDATE/DELETE; idempotent insert on (user_id, client_event_id); replay == incremental across 3 events (fixed: test now reads actual `concept_scheduler_state` row via `projection.read()`, not double-replay — break-checked: no-op applyEvent causes only that test to fail); tombstone nulls ciphertext while review_event row survives. ENG-1 spike re-runs clean (no regression). Idempotency-coupling contract logged in learnings.md.
@@ -61,7 +65,7 @@ Planned but not started. Group by area (`apps/web`, `services/billing`, `infra`,
 ### backend/ (Phase 1 — unblocked 2026-06-12)
 
 - ~~ENG-2: Postgres schema~~ — done 2026-06-12
-- ENG-3: Source Adapter + folder/markdown ingest → `IngestedDocument`
+- ~~ENG-3: Source Adapter + folder/markdown ingest~~ — done 2026-06-13
 - ENG-4: Lightweight candidate extraction (cheap pass at import)
 - ENG-5: FSRS engine behind `retrievability()` interface
 - ENG-6: Self-graded review surface (cloze)
