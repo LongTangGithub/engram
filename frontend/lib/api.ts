@@ -1,0 +1,20 @@
+import type { ClozeCardResponse, SubmitRequest, ReviewResultResponse } from './api-types';
+
+const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8081';
+
+export async function fetchNextCard(userId: string): Promise<ClozeCardResponse | null> {
+  const res = await fetch(`${BASE}/api/review/next?userId=${encodeURIComponent(userId)}`);
+  if (res.status === 204) return null;
+  if (!res.ok) throw new Error(`fetchNextCard failed: ${res.status}`);
+  return res.json() as Promise<ClozeCardResponse>;
+}
+
+export async function submitReview(body: SubmitRequest): Promise<ReviewResultResponse> {
+  const res = await fetch(`${BASE}/api/review/submit`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`submitReview failed: ${res.status}`);
+  return res.json() as Promise<ReviewResultResponse>;
+}

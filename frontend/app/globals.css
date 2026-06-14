@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: #ffffff;
+  --color-ink: #222222;
+  --color-accent: #FE9AB7;
+  --font-sans: var(--font-space-grotesk);
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-ink);
+  font-family: var(--font-space-grotesk), system-ui, sans-serif;
+}
