@@ -29,7 +29,7 @@ When finishing:
 
 ## Current Focus
 
-ENG-3 done. Next: ENG-4 (lightweight candidate extraction) or ENG-5 (FSRS engine).
+ENG-4 done. Next: ENG-5 (FSRS engine) or ENG-6 (self-graded review surface).
 
 ---
 
@@ -49,6 +49,8 @@ Most recent at the top. Trim aggressively — anything older than the current mi
 
 ### 2026-06-13
 
+- **ENG-4: Candidate extraction + persistence + incremental sync** — COMPLETE. 10/10 tests pass (5 repo, 5 service). Core proof verified: `secondRun_unchangedVault_zeroLlmCalls` — second run on unchanged vault makes 0 Extractor calls (Mockito `verify(extractor, never()).extract(any())`). Flyway V2 migration (`concept_candidate`), `LifecycleState` enum, `ConceptCandidate` record, `Extractor` interface, `ClaudeExtractor` impl (wired, not called in tests), `ConceptCandidateRepository` (JdbcTemplate), `CandidateIngestionService` orchestrator, `IngestionSummary` return type. All ENG-2/3 tests still green.
+
 - **ENG-3: Source Adapter + Obsidian folder ingest** — COMPLETE. 7/7 new tests pass (pure filesystem, @TempDir, no DB). Verified: scan nested .md files with correct sourceRef/title/content/lastModified; ignores non-.md + .obsidian/.git/.trash; hash stable for identical content, changes on 1-byte diff; SyncDiff classifies added/changed/unchanged/removed correctly; empty folder → empty list; missing folder → IllegalArgumentException. Package invariant documented in `com/engram/ingest/CLAUDE.md`. No DB dependency (persistence-agnostic by design).
 
 ### 2026-06-12
@@ -66,7 +68,7 @@ Planned but not started. Group by area (`apps/web`, `services/billing`, `infra`,
 
 - ~~ENG-2: Postgres schema~~ — done 2026-06-12
 - ~~ENG-3: Source Adapter + folder/markdown ingest~~ — done 2026-06-13
-- ENG-4: Lightweight candidate extraction (cheap pass at import)
+- ~~ENG-4: Lightweight candidate extraction~~ — done 2026-06-13
 - ENG-5: FSRS engine behind `retrievability()` interface
 - ENG-6: Self-graded review surface (cloze)
 
