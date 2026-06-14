@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: engram
+      POSTGRES_USER: engram
+      POSTGRES_PASSWORD: engram
+    ports:
+      - "5432:5432"
+    volumes:
+      - engram_pgdata:/var/lib/postgresql/data
+
+volumes:
+  engram_pgdata:

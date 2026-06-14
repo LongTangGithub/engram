@@ -52,7 +52,9 @@ public class EngramSpikeApplication implements CommandLineRunner {
     }
 
     public static void main(String[] args) {
-        SpringApplication.run(EngramSpikeApplication.class, args);
+        SpringApplication app = new SpringApplication(EngramSpikeApplication.class);
+        app.setWebApplicationType(org.springframework.boot.WebApplicationType.NONE);
+        app.run(args);
     }
 
     @Override

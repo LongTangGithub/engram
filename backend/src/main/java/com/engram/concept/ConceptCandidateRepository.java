@@ -10,6 +10,7 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -61,6 +62,36 @@ public class ConceptCandidateRepository {
                 (rs, n) -> Map.entry(rs.getString("source_ref"), rs.getString("source_content_hash")),
                 userId, sourceType.name()
         ).stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> b));
+    }
+
+    /**
+     * Picks the next concept to review for a user.
+     * Prefers never-reviewed (no scheduler state row) via NULLS FIRST, then most overdue.
+     * ENG-14 adds near-cliff smart selection; this is intentionally minimal.
+     */
+    public Optional<ConceptCandidate> findNextDue(UUID userId) {
+        List<ConceptCandidate> rows = jdbc.query("""
+                SELECT cc.* FROM concept_candidate cc
+                LEFT JOIN concept_scheduler_state css ON cc.concept_id = css.concept_id
+                WHERE cc.user_id = ?
+                ORDER BY css.due_at ASC NULLS FIRST
+                LIMIT 1
+                """, rowMapper(), userId);
+        return rows.isEmpty() ? Optional.empty() : Optional.of(rows.get(0));
+    }
+
+    /**
+     * Flips lifecycle from CANDIDATE → SEEDED after the first review.
+     *
+     * NOTE (ENG-8 decision): ACTIVATED (AI card generated) and SEEDED (first reviewed) may be
+     * orthogonal states, not a linear sequence. Do NOT assume CANDIDATE→ACTIVATED→SEEDED ordering
+     * until ENG-8 defines the relationship. This method only handles the SEEDED transition.
+     */
+    public void flipToSeeded(UUID conceptId) {
+        jdbc.update("""
+                UPDATE concept_candidate SET lifecycle_state = 'SEEDED', updated_at = now()
+                WHERE concept_id = ?
+                """, conceptId);
     }
 
     public List<ConceptCandidate> findByDoc(UUID userId, SourceType sourceType, String sourceRef) {
