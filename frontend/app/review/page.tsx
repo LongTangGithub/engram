@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import ReviewCard from '@/components/ReviewCard';
-import { fetchNextCard, submitReview } from '@/lib/api';
-import type { ClozeCardResponse } from '@/lib/api-types';
+import { fetchNextCard, submitReview, type ClozeCardResponse } from '@/lib/api';
 
 // Stable demo userId — in production this comes from auth.
 const DEMO_USER_ID = '00000000-0000-0000-0000-000000000001';
@@ -47,8 +46,8 @@ export default function ReviewPage() {
         reviewedAt: new Date().toISOString(),
       });
       setLastResult({
-        retrievability: result.retrievabilityNow,
-        dueAt: result.dueAt,
+        retrievability: result.retrievabilityNow ?? 0,
+        dueAt: result.dueAt ?? '',
       });
       // Brief pause so user sees the result, then load next
       await new Promise(r => setTimeout(r, 1200));
@@ -93,8 +92,8 @@ export default function ReviewPage() {
         <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-8 mb-6">
           <ReviewCard
             key={card.conceptId}
-            prompt={card.prompt}
-            answer={card.answer}
+            prompt={card.prompt ?? ''}
+            answer={card.answer ?? ''}
             onGrade={handleGrade}
           />
         </div>

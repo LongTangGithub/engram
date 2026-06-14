@@ -1,6 +1,8 @@
 package com.engram.config;
 
 import com.engram.concept.ConceptCandidateRepository;
+import com.engram.dashboard.DashboardRepository;
+import com.engram.dashboard.DashboardService;
 import com.engram.quiz.ClozeGenerator;
 import com.engram.quiz.ReviewService;
 import com.engram.review.ReviewEventRepository;
@@ -57,12 +59,22 @@ public class EngramConfig {
     }
 
     @Bean
+    DashboardRepository dashboardRepository(JdbcTemplate jdbc) {
+        return new DashboardRepository(jdbc);
+    }
+
+    @Bean
+    DashboardService dashboardService(DashboardRepository dashboardRepository, Fsrs fsrs) {
+        return new DashboardService(dashboardRepository, fsrs);
+    }
+
+    @Bean
     WebMvcConfigurer corsConfigurer() {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/api/**")
-                        .allowedOrigins("http://localhost:3000")
+                        .allowedOrigins("http://localhost:3000", "http://localhost:3001")
                         .allowedMethods("GET", "POST", "OPTIONS")
                         .allowedHeaders("*");
             }

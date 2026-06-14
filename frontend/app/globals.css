@@ -12,3 +12,15 @@ body {
   color: var(--color-ink);
   font-family: var(--font-space-grotesk), system-ui, sans-serif;
 }
+
+/* ── Mood-tier health classes (Law 2) ─────────────────────────────────────────
+   INVARIANT: tier-seed (brand pink) is for unseeded/positive/brand use ONLY.
+   Wilting and dormant concepts/gardens must NEVER use tier-seed.
+   These classes are the single frontend source of tier color — mirror TierThresholds.java.
+   ─────────────────────────────────────────────────────────────────────────── */
+.tier-thriving { background-color: #22c55e; color: #fff; }
+.tier-healthy  { background-color: #10b981; color: #fff; }
+.tier-fading   { background-color: #eab308; color: #1a1a1a; }
+.tier-wilting  { background-color: #f97316; color: #fff; }
+.tier-dormant  { background-color: #6b7280; color: #fff; }
+.tier-seed     { background-color: #FE9AB7; color: #1a1a1a; } /* brand pink — seed state only */
