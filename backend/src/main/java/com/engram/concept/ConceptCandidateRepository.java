@@ -67,7 +67,11 @@ public class ConceptCandidateRepository {
     /**
      * Picks the next concept to review for a user.
      * Prefers never-reviewed (no scheduler state row) via NULLS FIRST, then most overdue.
-     * ENG-14 adds near-cliff smart selection; this is intentionally minimal.
+     *
+     * <p><strong>Known limitation (ENG-6):</strong> this query does not filter by {@code due_at <= now()}.
+     * It always returns a card even when nothing is actually due. "Serve only due cards / reach an
+     * empty state when nothing is due" is deferred to ENG-14 (Daily Drop), which will add near-cliff
+     * smart selection. Do not add that filter here until ENG-14 designs the full selection policy.
      */
     public Optional<ConceptCandidate> findNextDue(UUID userId) {
         List<ConceptCandidate> rows = jdbc.query("""

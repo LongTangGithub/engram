@@ -116,9 +116,8 @@ class ReviewServiceTest {
         assertNotNull(state.stability());
         assertNotNull(state.difficulty());
 
-        // due_at ≈ reviewedAt + stability days
-        long expectedDays = Math.round(state.stability());
-        Instant expectedDue = now.plus(expectedDays, ChronoUnit.DAYS);
+        // due_at = reviewedAt + stability seconds (second precision, not whole-day rounding)
+        Instant expectedDue = now.plusSeconds(Math.round(state.stability() * 86400));
         assertEquals(expectedDue, result.dueAt());
 
         // lifecycle flipped to SEEDED

@@ -49,6 +49,8 @@ Most recent at the top. Trim aggressively — anything older than the current mi
 
 ### 2026-06-14
 
+- **ENG-6 follow-up: ClozeGenerator + due_at fixes** — COMPLETE (2026-06-14). 51/51 backend tests pass. (1) ClozeGenerator now uses whole-word lookarounds `(?<![\\w-])...(?![\\w-])` — hyphens treated as word-connectors; Pattern.quote guards regex-special titles. Fallback uses `\b` boundaries. 4 new tests (2 confirmed failures before fix). (2) due_at computed at second precision: `reviewedAt.plusSeconds(round(stability * 86400))` — eliminates whole-day rounding drift. See learnings.md for the masking gotcha.
+
 - **ENG-6: Self-graded review surface (full vertical slice)** — COMPLETE. 47/47 backend tests pass. 8/8 frontend Law-1 tests pass. `pnpm build` green (routes /, /review, /_not-found). Backend on port 8081 (8080 taken by Docker Desktop). Smoke test verified: `GET /api/review/next` returns cloze card, `POST /api/review/submit` returns `{retrievabilityNow, dueAt, lifecycleState: "SEEDED"}`. New: `ClozeGenerator`, `ReviewService` (nextCard + submitReview with FSRS, idempotency rule, CANDIDATE→SEEDED flip), `ReviewController` (`/api/review/next` + `/api/review/submit`), CORS for localhost:3000. Frontend: Next.js 16 App Router, Tailwind 4 (CSS-first), `ReviewCard.tsx` (reveal-gate), `/review` page, Law-1 component tests. First running app, first frontend. See learnings.md for port-8081 and dual-main-class gotchas.
 
 ### 2026-06-13

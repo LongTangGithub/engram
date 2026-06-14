@@ -9,7 +9,6 @@ import com.engram.scheduler.Fsrs;
 import com.engram.scheduler.FsrsState;
 
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -66,8 +65,8 @@ public class ReviewService {
         // 3. FSRS state transition
         FsrsState newState = fsrs.review(priorState, rating, reviewedAt);
 
-        // 4. Due date: interval for R=0.9 == stability days
-        Instant dueAt = reviewedAt.plus(Math.round(newState.stability()), ChronoUnit.DAYS);
+        // 4. Due date: stability days at second precision (avoids rounding whole days → scheduling drift)
+        Instant dueAt = reviewedAt.plusSeconds(Math.round(newState.stability() * 86400));
 
         // 5. Build review event
         ReviewEvent event = new ReviewEvent(

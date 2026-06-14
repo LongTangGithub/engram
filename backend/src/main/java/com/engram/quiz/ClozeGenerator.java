@@ -37,20 +37,30 @@ public class ClozeGenerator {
     }
 
     /**
-     * Replaces the first case-insensitive occurrence of {@code title} in {@code span}.
-     * Returns null if title is not found in span.
+     * Replaces the first whole-word, case-insensitive occurrence of {@code title} in {@code span}.
+     * Returns null if no whole-word match is found.
+     *
+     * "Whole word" means the match is not immediately preceded or followed by a word character
+     * or a hyphen. Treating hyphens as word-connectors prevents masking a title that appears
+     * only as part of a hyphenated compound (e.g. "retrieval" does not match in "retrieval-practice").
+     *
+     * {@code answer} is always the canonical {@link ConceptCandidate#title()} stored in the DB —
+     * not the matched surface form — so casing is preserved as the author entered it.
      */
     private static String maskByTitle(String span, String title) {
-        Pattern p = Pattern.compile(Pattern.quote(title), Pattern.CASE_INSENSITIVE);
+        Pattern p = Pattern.compile(
+                "(?<![\\w-])" + Pattern.quote(title) + "(?![\\w-])",
+                Pattern.CASE_INSENSITIVE);
         java.util.regex.Matcher m = p.matcher(span);
         if (!m.find()) return null;
         return span.substring(0, m.start()) + BLANK + span.substring(m.end());
     }
 
     private static String maskFirst(String span, String word) {
-        int idx = span.indexOf(word);
-        if (idx < 0) return BLANK;
-        return span.substring(0, idx) + BLANK + span.substring(idx + word.length());
+        // longestWord() splits on \W+ so the result is pure [a-zA-Z0-9_]; \b is reliable here.
+        java.util.regex.Matcher m = Pattern.compile("\\b" + Pattern.quote(word) + "\\b").matcher(span);
+        if (!m.find()) return BLANK;
+        return span.substring(0, m.start()) + BLANK + span.substring(m.end());
     }
 
     private static String longestWord(String span) {

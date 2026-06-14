@@ -54,6 +54,47 @@ class ClozeGeneratorTest {
         assertEquals(id, card.conceptId());
     }
 
+    // ── whole-word boundary tests ─────────────────────────────────────────────
+
+    @Test
+    void regexSpecialTitle_cPlusPlus_masksCorrectly() {
+        ClozeCard card = gen.generate(candidate(
+                "C++",
+                "C++ is a widely used systems programming language."));
+        assertEquals("[___] is a widely used systems programming language.", card.prompt());
+        assertEquals("C++", card.answer());
+    }
+
+    @Test
+    void regexSpecialTitle_parentheses_masksCorrectly() {
+        ClozeCard card = gen.generate(candidate(
+                "Big-O (worst case)",
+                "Algorithm complexity is expressed as Big-O (worst case) notation."));
+        assertEquals("Algorithm complexity is expressed as [___] notation.", card.prompt());
+        assertEquals("Big-O (worst case)", card.answer());
+    }
+
+    @Test
+    void titleSubstringOfLargerWord_isNotMasked_onlyWholeWordMatch() {
+        // "act" must not match inside "practice"; only the standalone "act" should be blanked
+        ClozeCard card = gen.generate(candidate(
+                "act",
+                "in practice an act solidifies learning"));
+        assertEquals("in practice an [___] solidifies learning", card.prompt());
+        assertEquals("act", card.answer());
+    }
+
+    @Test
+    void hyphenatedNeighbor_notCorrupted_standaloneOccurrenceMasked() {
+        // "retrieval" appears first as part of "retrieval-practice" (hyphenated — must NOT match),
+        // then as a standalone word — only the standalone occurrence should be blanked.
+        ClozeCard card = gen.generate(candidate(
+                "retrieval",
+                "retrieval-practice then retrieval appears."));
+        assertEquals("retrieval-practice then [___] appears.", card.prompt());
+        assertEquals("retrieval", card.answer());
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
 
     private static ConceptCandidate candidate(String title, String span) {
