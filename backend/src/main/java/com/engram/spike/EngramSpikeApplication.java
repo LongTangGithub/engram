@@ -5,11 +5,13 @@ import com.engram.spike.concept.ConceptCandidate;
 import com.engram.spike.generation.GenerationOrchestrator;
 import com.engram.spike.ingest.CandidateExtractor;
 import com.engram.spike.llm.CostLog;
-import com.engram.spike.review.ReviewEvent;
 import com.engram.spike.scheduler.FsrsReadback;
+import com.engram.review.ReviewEvent;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -31,7 +33,7 @@ import java.util.UUID;
  *   ANTHROPIC_API_KEY=sk-... ./gradlew bootRun --args="sample-note.md"
  * If no path is given, defaults to sample-note.md in the working directory.
  */
-@SpringBootApplication
+@SpringBootApplication(exclude = {DataSourceAutoConfiguration.class, FlywayAutoConfiguration.class})
 public class EngramSpikeApplication implements CommandLineRunner {
 
     private final CandidateExtractor extractor;
@@ -86,14 +88,23 @@ public class EngramSpikeApplication implements CommandLineRunner {
         card.distractors().forEach(d -> System.out.println("    x " + d));
         line();
 
-        // 3) write a review event (simulate a 'Good' self-grade) — the immutable fact
+        // 3) write a review event (simulate a 'Good' self-grade) — the immutable fact.
+        // Spike uses minimal fields; full schema fields are ENG-2 territory.
         ReviewEvent event = new ReviewEvent(
-                UUID.randomUUID().toString(),
-                card.conceptTitle(),
-                Instant.now(),
-                "mcq",
-                true,   // raw outcome
-                3       // derived rating: Good
+                UUID.randomUUID(),  // eventId
+                0L,                 // seq (DB-assigned; 0 here since spike skips DB)
+                UUID.randomUUID().toString(), // clientEventId
+                UUID.randomUUID(),  // userId (stub)
+                UUID.randomUUID(),  // conceptId (stub)
+                Instant.now(),      // occurredAt
+                null, null,         // sessionId, sessionType
+                "mcq",              // format
+                null,               // responseLatencyMs
+                true,               // isCorrect — raw outcome (truth)
+                null, false,        // score, hintUsed
+                3,                  // fsrsRating — derived: Good
+                null, null, null, null, // grading fields
+                null, null, null, null, null  // scheduler snapshot
         );
         System.out.println("Wrote review event: " + event.eventId() + "  (rating=" + event.fsrsRating() + ")");
 

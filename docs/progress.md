@@ -29,7 +29,7 @@ When finishing:
 
 ## Current Focus
 
-Phase 1 unblocked. ENG-1 passed: cost and quality acceptable. Next: ENG-2 Postgres schema.
+ENG-2 done. Next: ENG-3 (Source Adapter + folder/markdown ingest) or ENG-5 (FSRS engine).
 
 ---
 
@@ -49,6 +49,7 @@ Most recent at the top. Trim aggressively — anything older than the current mi
 
 ### 2026-06-12
 
+- **ENG-2: Postgres event log + projection** — COMPLETE. 5/5 tests pass (embedded-postgres, no Docker). Verified: append-only trigger rejects UPDATE/DELETE; idempotent insert on (user_id, client_event_id); replay == incremental across 3 events (fixed: test now reads actual `concept_scheduler_state` row via `projection.read()`, not double-replay — break-checked: no-op applyEvent causes only that test to fail); tombstone nulls ciphertext while review_event row survives. ENG-1 spike re-runs clean (no regression). Idempotency-coupling contract logged in learnings.md.
 - **ENG-1: de-risking spike** — PASSED. Spike ran end-to-end on `sample-note.md`. Cost: $0.006/activation (~$3/mo at 500 activations, target <$9). Card quality: Q atomic + genuine recall, A faithful to note, distractors plausible-but-wrong. Build fixes: added `jackson-databind` dep, fixed Gradle 7 toolchain syntax, generated `gradlew` wrapper. Unblocks all Phase 1 work.
 
 ---
@@ -59,7 +60,7 @@ Planned but not started. Group by area (`apps/web`, `services/billing`, `infra`,
 
 ### backend/ (Phase 1 — unblocked 2026-06-12)
 
-- ENG-2: Postgres schema — `review_event`, `concept_scheduler_state`, `review_event_answer_payload`
+- ~~ENG-2: Postgres schema~~ — done 2026-06-12
 - ENG-3: Source Adapter + folder/markdown ingest → `IngestedDocument`
 - ENG-4: Lightweight candidate extraction (cheap pass at import)
 - ENG-5: FSRS engine behind `retrievability()` interface
@@ -104,12 +105,19 @@ Anything waiting on a decision, an external dependency, or clarification. Each e
 
 Significant technical or product decisions made during the project. Append-only — don't rewrite history, add a new entry if a decision is reversed.
 
-### YYYY-MM-DD — &lt;decision title&gt;
+### 2026-06-12 — JdbcTemplate over jOOQ for ENG-2
 
-- **Context:** what prompted the decision
-- **Decision:** what was chosen
-- **Alternatives considered:** what else was on the table
-- **Consequences:** what this commits us to
+- **Context:** Spec said "jOOQ preferred or JdbcTemplate." jOOQ requires code generation from schema (DB-first) which adds build complexity and fights a not-yet-stable schema.
+- **Decision:** JdbcTemplate. Explicit SQL, no ORM, no codegen. Satisfies the core requirement (no JPA, no mutable-entity model).
+- **Alternatives considered:** jOOQ DSL without codegen (possible but loses type safety); jOOQ with codegen (right call when schema stabilizes, likely after ENG-5).
+- **Consequences:** Can migrate to jOOQ codegen when schema is stable. RowMapper boilerplate stays in repo classes for now.
+
+### 2026-06-12 — embedded-postgres over Testcontainers for integration tests
+
+- **Context:** Testcontainers' docker-java client gets a stub 400 from Docker Desktop's gateway socket on this machine even though `docker run` works via the CLI. Root cause: docker-java negotiates differently than the Docker CLI.
+- **Decision:** `io.zonky.test:embedded-postgres`. Real Postgres binary, no Docker dependency, ~1s startup.
+- **Alternatives considered:** Fix Docker Desktop socket (needs UI change by user); Colima (not installed); raw Postgres.app (not running).
+- **Consequences:** No Docker needed for tests. CI must have embedded-postgres available (it bundles the binary, so it works on Linux/macOS without a separate install).
 
 ---
 

@@ -1,6 +1,6 @@
 package com.engram.spike.scheduler;
 
-import com.engram.spike.review.ReviewEvent;
+import com.engram.review.ReviewEvent;
 import org.springframework.stereotype.Component;
 
 /**
