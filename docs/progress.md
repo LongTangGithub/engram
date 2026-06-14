@@ -29,7 +29,7 @@ When finishing:
 
 ## Current Focus
 
-ENG-4 done. Next: ENG-5 (FSRS engine) or ENG-6 (self-graded review surface).
+ENG-5 done. Next: ENG-6 (self-graded review surface — wires FSRS into the event log).
 
 ---
 
@@ -48,6 +48,8 @@ Work currently underway. One entry per concrete unit of work (feature, file, mig
 Most recent at the top. Trim aggressively — anything older than the current milestone can be archived to `progress-archive.md` or deleted.
 
 ### 2026-06-13
+
+- **ENG-5: FSRS-6 engine behind RetrievabilityEngine interface** — COMPLETE. 15/15 tests pass (pure unit, no DB). Oracle: py-fsrs 6.3.1 (FSRS-6). Ported: initial S/D formulas, next recall stability, next forget stability, next difficulty (mean-reversion), retrievability formula. Oracle-match tolerance 1e-6 on all formula vectors. `scheduler_version` = "FSRS-6" (feed this into the `scheduler_version` column at ENG-6). Package: `com.engram.scheduler`. NOT wired to DB or event log — ENG-6's job.
 
 - **ENG-4: Candidate extraction + persistence + incremental sync** — COMPLETE. 10/10 tests pass (5 repo, 5 service). Core proof verified: `secondRun_unchangedVault_zeroLlmCalls` — second run on unchanged vault makes 0 Extractor calls (Mockito `verify(extractor, never()).extract(any())`). Flyway V2 migration (`concept_candidate`), `LifecycleState` enum, `ConceptCandidate` record, `Extractor` interface, `ClaudeExtractor` impl (wired, not called in tests), `ConceptCandidateRepository` (JdbcTemplate), `CandidateIngestionService` orchestrator, `IngestionSummary` return type. All ENG-2/3 tests still green.
 
@@ -69,7 +71,7 @@ Planned but not started. Group by area (`apps/web`, `services/billing`, `infra`,
 - ~~ENG-2: Postgres schema~~ — done 2026-06-12
 - ~~ENG-3: Source Adapter + folder/markdown ingest~~ — done 2026-06-13
 - ~~ENG-4: Lightweight candidate extraction~~ — done 2026-06-13
-- ENG-5: FSRS engine behind `retrievability()` interface
+- ~~ENG-5: FSRS engine behind `retrievability()` interface~~ — done 2026-06-14
 - ENG-6: Self-graded review surface (cloze)
 
 ### apps/web (Phase 1 — unblocked 2026-06-12)

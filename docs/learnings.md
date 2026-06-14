@@ -30,6 +30,10 @@ Format: `- (YYYY-MM-DD) <do / don't>. Why: <the pattern, gotcha, or incident tha
 ## Gotchas
 > Traps, sharp edges, surprising behavior — things that bit us once.
 
+- (2026-06-14) FSRS-6 has 21 parameters (indices 0–20), not 19. w[20] is the DECAY base (DECAY = -w[20]); FACTOR is derived: `0.9^(1/DECAY) - 1`. Do not hard-code FACTOR as 19/81 (that was FSRS-5). Always re-derive FACTOR from the weights when updating the weight set.
+- (2026-06-14) py-fsrs 6.x uses a learning-step state machine (Learning → Review → Relearning states). Our Java engine only ports Review-state math (no steps, no state enum in FsrsState). Short-term stability (w[17..19]) is unused in the engine — it belongs to the scheduler wrapper, not the decay math. This is intentional: ENG-6 wiring only feeds Review-state events.
+- (2026-06-14) STABILITY_MIN in py-fsrs 6.3.1 is 0.001 (not 0.1). Verify the constant from the reference source — do not guess clamping bounds.
+
 - (2026-06-12) Flyway 10 (managed by Spring Boot 3.3+) dropped Postgres support from `flyway-core`. Add `org.flywaydb:flyway-database-postgresql` separately or Flyway throws `Unsupported Database: PostgreSQL X.Y`. Version is managed by Spring Boot BOM — no explicit version needed.
 - (2026-06-12) `spring-jdbc` standalone (`org.springframework.jdbc:spring-jdbc`) doesn't resolve via the Spring Boot BOM dependency management plugin alone. Use `spring-boot-starter-jdbc` instead; exclude `DataSourceAutoConfiguration` and `FlywayAutoConfiguration` from `@SpringBootApplication` if the app doesn't need a DB at startup (e.g., the spike runner).
 - (2026-06-12) Idempotent insert on append-only table must use `ON CONFLICT (...) DO NOTHING` — never `DO UPDATE`. `DO UPDATE` would fire the append-only trigger and raise an exception.
