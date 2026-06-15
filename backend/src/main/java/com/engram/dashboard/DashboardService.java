@@ -1,7 +1,7 @@
 package com.engram.dashboard;
 
-import com.engram.scheduler.Fsrs;
 import com.engram.scheduler.FsrsState;
+import com.engram.scheduler.RetrievabilityEngine;
 
 import java.time.Instant;
 import java.util.*;
@@ -10,11 +10,11 @@ import java.util.stream.Collectors;
 public class DashboardService {
 
     private final DashboardRepository repo;
-    private final Fsrs fsrs;
+    private final RetrievabilityEngine engine;
 
-    public DashboardService(DashboardRepository repo, Fsrs fsrs) {
+    public DashboardService(DashboardRepository repo, RetrievabilityEngine engine) {
         this.repo = repo;
-        this.fsrs = fsrs;
+        this.engine = engine;
     }
 
     public DashboardView getDashboard(UUID userId) {
@@ -31,7 +31,7 @@ public class DashboardService {
             MoodTier tier = null;
             if (isSeeded && row.stability() != null && row.lastReviewedAt() != null) {
                 FsrsState state = new FsrsState(row.stability(), row.difficulty(), row.lastReviewedAt());
-                r = fsrs.retrievability(state, now);
+                r = engine.retrievability(state, now);
                 tier = TierThresholds.classify(r);
             }
             return new Enriched(row.title(), row.topicTag(), row.lifecycleState(), r, tier);

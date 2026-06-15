@@ -8,6 +8,7 @@ import com.engram.quiz.ReviewService;
 import com.engram.review.ReviewEventRepository;
 import com.engram.review.SchedulerProjection;
 import com.engram.scheduler.Fsrs;
+import com.engram.scheduler.RetrievabilityEngine;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -40,7 +41,7 @@ public class EngramConfig {
     }
 
     @Bean
-    Fsrs fsrs() {
+    RetrievabilityEngine fsrs() {
         return new Fsrs();
     }
 
@@ -53,9 +54,9 @@ public class EngramConfig {
     ReviewService reviewService(ConceptCandidateRepository ccRepo,
                                 ReviewEventRepository eventRepo,
                                 SchedulerProjection projection,
-                                Fsrs fsrs,
+                                RetrievabilityEngine engine,
                                 ClozeGenerator clozeGenerator) {
-        return new ReviewService(ccRepo, eventRepo, projection, fsrs, clozeGenerator);
+        return new ReviewService(ccRepo, eventRepo, projection, engine, clozeGenerator);
     }
 
     @Bean
@@ -64,8 +65,8 @@ public class EngramConfig {
     }
 
     @Bean
-    DashboardService dashboardService(DashboardRepository dashboardRepository, Fsrs fsrs) {
-        return new DashboardService(dashboardRepository, fsrs);
+    DashboardService dashboardService(DashboardRepository dashboardRepository, RetrievabilityEngine engine) {
+        return new DashboardService(dashboardRepository, engine);
     }
 
     @Bean

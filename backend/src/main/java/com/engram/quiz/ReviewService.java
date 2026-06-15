@@ -5,8 +5,8 @@ import com.engram.review.ConceptSchedulerState;
 import com.engram.review.ReviewEvent;
 import com.engram.review.ReviewEventRepository;
 import com.engram.review.SchedulerProjection;
-import com.engram.scheduler.Fsrs;
 import com.engram.scheduler.FsrsState;
+import com.engram.scheduler.RetrievabilityEngine;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -17,18 +17,18 @@ public class ReviewService {
     private final ConceptCandidateRepository ccRepo;
     private final ReviewEventRepository eventRepo;
     private final SchedulerProjection projection;
-    private final Fsrs fsrs;
+    private final RetrievabilityEngine engine;
     private final ClozeGenerator clozeGenerator;
 
     public ReviewService(ConceptCandidateRepository ccRepo,
                          ReviewEventRepository eventRepo,
                          SchedulerProjection projection,
-                         Fsrs fsrs,
+                         RetrievabilityEngine engine,
                          ClozeGenerator clozeGenerator) {
         this.ccRepo = ccRepo;
         this.eventRepo = eventRepo;
         this.projection = projection;
-        this.fsrs = fsrs;
+        this.engine = engine;
         this.clozeGenerator = clozeGenerator;
     }
 
@@ -60,10 +60,10 @@ public class ReviewService {
 
         // 2. Retrievability at the moment of this review (before updating state)
         double retrievabilityAtReview = priorState == null ? 0.0
-                : fsrs.retrievability(priorState, reviewedAt);
+                : engine.retrievability(priorState, reviewedAt);
 
         // 3. FSRS state transition
-        FsrsState newState = fsrs.review(priorState, rating, reviewedAt);
+        FsrsState newState = engine.review(priorState, rating, reviewedAt);
 
         // 4. Due date: stability days at second precision (avoids rounding whole days → scheduling drift)
         Instant dueAt = reviewedAt.plusSeconds(Math.round(newState.stability() * 86400));
@@ -89,7 +89,7 @@ public class ReviewService {
                 newState.difficulty(),
                 dueAt,
                 retrievabilityAtReview,
-                fsrs.version()
+                engine.version()
         );
 
         // 6. Append + conditionally apply (idempotency-coupling rule from ENG-2 learnings)
@@ -103,7 +103,7 @@ public class ReviewService {
         }
 
         // 8. Current retrievability with the new state
-        double retrievabilityNow = fsrs.retrievability(newState, Instant.now());
+        double retrievabilityNow = engine.retrievability(newState, Instant.now());
 
         return new ReviewResult(retrievabilityNow, dueAt, "SEEDED");
     }
