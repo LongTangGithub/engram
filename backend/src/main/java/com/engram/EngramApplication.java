@@ -12,6 +12,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication(scanBasePackages = {
         "com.engram.config",
         "com.engram.api",
+        "com.engram.dashboard",
         "com.engram.review",
         "com.engram.concept",
         "com.engram.ingest",

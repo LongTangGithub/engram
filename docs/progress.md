@@ -29,7 +29,7 @@ When finishing:
 
 ## Current Focus
 
-ENG-6 done. First running app + first frontend. Next: ENG-7 (living dashboard).
+**Phase 1 COMPLETE.** ENG-1 through ENG-7 shipped. Next: Phase 2 (ENG-8 deep activation pipeline).
 
 ---
 
@@ -48,6 +48,8 @@ Work currently underway. One entry per concrete unit of work (feature, file, mig
 Most recent at the top. Trim aggressively — anything older than the current milestone can be archived to `progress-archive.md` or deleted.
 
 ### 2026-06-14
+
+- **ENG-7: Living dashboard (cold-start + steady-state modes)** — COMPLETE. Phase 1 COMPLETE. 75/75 backend tests pass. 21/21 frontend tests pass (8 ReviewCard + 13 Dashboard). `pnpm build` green (routes /, /review, /dashboard). Backend: `MoodTier` enum, `TierThresholds` (single source of truth for all 5 tier boundaries + RETRIEVABLE_THRESHOLD=0.7), `DashboardMode`, `ConceptView`/`GardenView`/`DashboardView` records, `DashboardRepository` (LEFT JOIN concept_candidate + concept_scheduler_state), `DashboardService` (live FSRS retrievability, null tier for unseeded, garden rollup), `DashboardController` (`GET /api/dashboard?userId=`). Frontend: regenerated `api-types.ts` (openapi-typescript v7), `lib/tier-colors.ts` (ONE token map — Law 2), `GardenCard.tsx`, `DashboardPage.tsx` (both modes), `/dashboard/page.tsx`. API smoke-tested: cold-start returns `COLD_START` mode with empty gardens; after seeding via review loop returns `STEADY_STATE` with THRIVING garden (retrievability≈0.998). Law-2 color tests enforce pink never appears on health tiers. See learnings.md for openapi-typescript v7 gotchas.
 
 - **ENG-6 follow-up: ClozeGenerator + due_at fixes** — COMPLETE (2026-06-14). 51/51 backend tests pass. (1) ClozeGenerator now uses whole-word lookarounds `(?<![\\w-])...(?![\\w-])` — hyphens treated as word-connectors; Pattern.quote guards regex-special titles. Fallback uses `\b` boundaries. 4 new tests (2 confirmed failures before fix). (2) due_at computed at second precision: `reviewedAt.plusSeconds(round(stability * 86400))` — eliminates whole-day rounding drift. See learnings.md for the masking gotcha.
 
@@ -82,7 +84,7 @@ Planned but not started. Group by area (`apps/web`, `services/billing`, `infra`,
 
 ### apps/web (Phase 1 — unblocked 2026-06-12)
 
-- ENG-7: Living dashboard (cold-start + steady modes)
+- ~~ENG-7: Living dashboard (cold-start + steady modes)~~ — done 2026-06-14
 
 ### backend/ (Phase 2)
 
