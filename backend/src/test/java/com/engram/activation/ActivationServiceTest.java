@@ -78,7 +78,7 @@ class ActivationServiceTest {
         assertEquals("idem-1", card.idempotencyKey());
         assertNotNull(card.createdAt());
         assertTrue(card.costMicros() >= 0);
-        assertEquals(Professor.PROMPT_VERSION, card.generationPromptVersion());
+        assertEquals(Professor.PROMPT_VERSION + "/" + Distractor.PROMPT_VERSION, card.generationPromptVersion());
 
         // Verify row is in DB
         Optional<ActivatedCard> dbCard = cardRepo.findByConceptId(conceptId);
@@ -206,6 +206,79 @@ class ActivationServiceTest {
         int afterCount = jdbc.queryForObject("SELECT COUNT(*) FROM review_event", Integer.class);
 
         assertEquals(beforeCount, afterCount, "activation must write ZERO review_event rows");
+    }
+
+    // ── A1. Truly cold vault: concept HAS embedding but is ONLY concept ───────
+    // Distinct from test #6 (NULL embedding). Here embedding exists but kNN self-
+    // exclusion returns zero neighbors because no other concept is in the vault.
+
+    @Test
+    void activate_onlyConceptInVault_zeroNeighbors_stillGeneratesCard() {
+        FakeEmbeddingProvider embedder = new FakeEmbeddingProvider();
+        UUID conceptId = insertConcept("Retrieval Induced Forgetting", "memory",
+                "Recalling some items inhibits recall of related items.");
+        vectorRepo.backfill(userId, embedder); // embedding backfilled, but no other concepts
+
+        ActivatedCard card = service.activate(userId, conceptId, "idem-a1");
+
+        assertNotNull(card);
+        assertEquals(3, card.distractors().size());
+        assertEquals(2, fakeClient.callCount(),
+                "single concept in vault → kNN self-exclusion → 0 neighbors → still 2 LLM calls");
+
+        // Distractor grounding must NOT mention vault neighbors (none exist)
+        FakeClaudeClient.Call distractorCall = fakeClient.calls().stream()
+                .filter(c -> c.tier() == ModelTier.EXPENSIVE)
+                .findFirst().orElseThrow();
+        assertFalse(distractorCall.userText().contains("RELATED VAULT CONCEPTS"),
+                "with zero neighbors, grounding must not mention vault concepts");
+    }
+
+    // ── A2. Distractor repair: bounded retry on answer collision ──────────────
+
+    @Test
+    void verify_collisionOnFirstDistractorCall_repairRetries_exactlyThreeCalls() {
+        // Correct answer from CHEAP fake: "Long-term memory retention"
+        // First EXPENSIVE: one slot collides with correct answer → 2 valid survivors
+        // Retry EXPENSIVE: clean → merged to 3+ valid
+        fakeClient.enqueueResponses(ModelTier.EXPENSIVE,
+                "[\"Long-term memory retention\", \"Short-term memorization\", \"Random guess\"]",
+                "[\"Passive re-reading\", \"Cramming sessions\", \"Visual aids\"]");
+
+        UUID conceptId = insertConcept("Spaced Repetition", "memory", "SR optimizes retention.");
+        ActivatedCard card = service.activate(userId, conceptId, "idem-repair");
+
+        assertEquals(3, fakeClient.callCount(),
+                "1 Professor + 2 Distractor (initial + repair retry) = 3 total LLM calls");
+        assertEquals(3, card.distractors().size());
+
+        // Cost must include both Distractor calls
+        long expectedCost = ModelTier.CHEAP.toMicros(100, 50)
+                + 2L * ModelTier.EXPENSIVE.toMicros(100, 50);
+        assertEquals(expectedCost, card.costMicros(),
+                "cost must accumulate both Distractor calls including repair retry");
+    }
+
+    @Test
+    void verify_persistentCollision_throwsTypedException_noCardPersisted() {
+        // Both EXPENSIVE calls return distractors that all duplicate the correct answer
+        // → merged valid count stays 0 after retry → ActivationGenerationException
+        fakeClient.enqueueResponses(ModelTier.EXPENSIVE,
+                "[\"Long-term memory retention\", \"Long-term memory retention\", \"Long-term memory retention\"]",
+                "[\"Long-term memory retention\", \"Long-term memory retention\", \"Long-term memory retention\"]");
+
+        UUID conceptId = insertConcept("Spacing Effect", "memory", "Distributed practice beats massed.");
+
+        assertThrows(ActivationGenerationException.class,
+                () -> service.activate(userId, conceptId, "idem-fail"),
+                "persistent collision must throw typed ActivationGenerationException");
+
+        assertTrue(cardRepo.findByConceptId(conceptId).isEmpty(),
+                "failed generation must not persist any card");
+        Object activatedAt = jdbc.queryForObject(
+                "SELECT activated_at FROM concept_candidate WHERE concept_id = ?",
+                Object.class, conceptId);
+        assertNull(activatedAt, "activated_at must remain null on generation failure");
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────

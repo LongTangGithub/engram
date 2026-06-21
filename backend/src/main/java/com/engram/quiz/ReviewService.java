@@ -39,18 +39,17 @@ public class ReviewService {
 
     /**
      * Records a self-graded review and advances the FSRS state.
-     *
-     * Idempotency rule (ENG-2): only update the projection when the event was actually inserted.
-     * `if (eventRepo.append(e)) projection.applyEvent(e);`
-     *
-     * Due date: FSRS guarantees R=0.9 at t=stability days, so due_at = reviewedAt + stability days.
-     * Target retention is 0.9 (the FSRS default). If it ever needs to be configurable, move it
-     * into the Fsrs/RetrievabilityEngine interface; don't thread it through here.
+     * format: "cloze" | "mcq" — stored in the immutable event log for provenance.
      *
      * @param rating 1=Again 2=Hard 3=Good 4=Easy
      */
     public ReviewResult submitReview(UUID userId, UUID conceptId, int rating,
                                      String clientEventId, Instant reviewedAt) {
+        return submitReview(userId, conceptId, rating, clientEventId, reviewedAt, "cloze");
+    }
+
+    public ReviewResult submitReview(UUID userId, UUID conceptId, int rating,
+                                     String clientEventId, Instant reviewedAt, String format) {
         // 1. Read prior FSRS state (null = first review)
         ConceptSchedulerState prior = projection.read(conceptId, userId);
         boolean isFirstReview = prior == null;
@@ -77,7 +76,7 @@ public class ReviewService {
                 conceptId,
                 reviewedAt,
                 null, null,                  // sessionId, sessionType (ENG-6 scope: unused)
-                "cloze",
+                format,
                 null,                        // responseLatencyMs
                 rating > 1,                  // isCorrect: Again=wrong, Hard/Good/Easy=correct
                 null,                        // score (no numeric score for self-grade)

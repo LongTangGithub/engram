@@ -8,6 +8,7 @@ import com.engram.activation.Distractor;
 import com.engram.activation.GenerationOrchestrator;
 import com.engram.activation.Professor;
 import com.engram.concept.CandidateIngestionService;
+import com.engram.concept.Extractor;
 import com.engram.concept.CandidateVectorRepository;
 import com.engram.concept.ConceptCandidateRepository;
 import com.engram.concept.Extractor;
@@ -60,6 +61,13 @@ public class EngramConfig {
     @Bean
     EmbeddingProvider embeddingProvider() {
         return new OpenAiEmbeddingProvider();
+    }
+
+    // Stub extractor for bootRun — ingest via API not needed for ENG-8b local testing.
+    // Replace with ClaudeExtractor when wiring the full ingest endpoint (ENG-10+).
+    @Bean
+    Extractor extractor() {
+        return doc -> { throw new UnsupportedOperationException("ingest not wired in bootRun yet"); };
     }
 
     @Bean
