@@ -1,13 +1,10 @@
 package com.engram.review;
 
-import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
+import com.engram.TestDatabase;
 import org.flywaydb.core.Flyway;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.SingleConnectionDataSource;
 
 import javax.sql.DataSource;
 import java.time.Instant;
@@ -16,34 +13,16 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Integration tests for the ENG-2 event log + projection.
- * Uses embedded-postgres (real Postgres binary, no Docker) for full SQL fidelity:
- * triggers, ON CONFLICT, and bytea all behave exactly as production.
- */
 class ReviewEventRepositoryTest {
 
-    private static EmbeddedPostgres pg;
-    private static DataSource ds;
+    private static final DataSource ds = TestDatabase.dataSource();
 
     private JdbcTemplate jdbc;
     private ReviewEventRepository repo;
     private SchedulerProjection projection;
 
-    @BeforeAll
-    static void startPostgres() throws Exception {
-        pg = EmbeddedPostgres.start();
-        ds = pg.getPostgresDatabase();
-    }
-
-    @AfterAll
-    static void stopPostgres() throws Exception {
-        if (pg != null) pg.close();
-    }
-
     @BeforeEach
     void setUp() {
-        // Clean + re-migrate for test isolation.
         Flyway.configure().dataSource(ds).cleanDisabled(false).load().clean();
         Flyway.configure().dataSource(ds).load().migrate();
         jdbc = new JdbcTemplate(ds);

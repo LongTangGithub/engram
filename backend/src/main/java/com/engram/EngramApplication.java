@@ -15,6 +15,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
         "com.engram.dashboard",
         "com.engram.review",
         "com.engram.concept",
+        "com.engram.embedding",
         "com.engram.ingest",
         "com.engram.scheduler",
         "com.engram.quiz"

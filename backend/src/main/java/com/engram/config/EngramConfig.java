@@ -1,8 +1,13 @@
 package com.engram.config;
 
+import com.engram.concept.CandidateIngestionService;
+import com.engram.concept.CandidateVectorRepository;
 import com.engram.concept.ConceptCandidateRepository;
+import com.engram.concept.Extractor;
 import com.engram.dashboard.DashboardRepository;
 import com.engram.dashboard.DashboardService;
+import com.engram.embedding.EmbeddingProvider;
+import com.engram.embedding.OpenAiEmbeddingProvider;
 import com.engram.quiz.ClozeGenerator;
 import com.engram.quiz.ReviewService;
 import com.engram.review.ReviewEventRepository;
@@ -38,6 +43,23 @@ public class EngramConfig {
     @Bean
     ConceptCandidateRepository conceptCandidateRepository(JdbcTemplate jdbc) {
         return new ConceptCandidateRepository(jdbc);
+    }
+
+    @Bean
+    CandidateVectorRepository candidateVectorRepository(JdbcTemplate jdbc) {
+        return new CandidateVectorRepository(jdbc);
+    }
+
+    @Bean
+    EmbeddingProvider embeddingProvider() {
+        return new OpenAiEmbeddingProvider();
+    }
+
+    @Bean
+    CandidateIngestionService candidateIngestionService(Extractor extractor,
+                                                        ConceptCandidateRepository repo,
+                                                        EmbeddingProvider embedder) {
+        return new CandidateIngestionService(extractor, repo, embedder);
     }
 
     @Bean

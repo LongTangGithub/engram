@@ -1,5 +1,6 @@
 package com.engram.quiz;
 
+import com.engram.TestDatabase;
 import com.engram.concept.ConceptCandidate;
 import com.engram.concept.ConceptCandidateRepository;
 import com.engram.concept.LifecycleState;
@@ -8,10 +9,7 @@ import com.engram.review.ConceptSchedulerState;
 import com.engram.review.ReviewEventRepository;
 import com.engram.review.SchedulerProjection;
 import com.engram.scheduler.Fsrs;
-import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 import org.flywaydb.core.Flyway;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -24,14 +22,9 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Integration tests for ReviewService.
- * Uses embedded-postgres; no Spring context, no mocks for DB layer.
- */
 class ReviewServiceTest {
 
-    private static EmbeddedPostgres pg;
-    private static DataSource ds;
+    private static final DataSource ds = TestDatabase.dataSource();
 
     private ReviewService service;
     private ConceptCandidateRepository ccRepo;
@@ -40,17 +33,6 @@ class ReviewServiceTest {
 
     private UUID userId;
     private UUID conceptId;
-
-    @BeforeAll
-    static void startPostgres() throws Exception {
-        pg = EmbeddedPostgres.start();
-        ds = pg.getPostgresDatabase();
-    }
-
-    @AfterAll
-    static void stopPostgres() throws Exception {
-        if (pg != null) pg.close();
-    }
 
     @BeforeEach
     void setUp() {

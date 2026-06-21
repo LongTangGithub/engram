@@ -14,6 +14,9 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+// Vector helper — formats float[] as pgvector text literal "[v1,v2,...,vn]" for CAST(? AS vector).
+// Defined here so CandidateVectorRepository (same package) can reuse it.
+
 public class ConceptCandidateRepository {
 
     private final JdbcTemplate jdbc;
@@ -23,8 +26,9 @@ public class ConceptCandidateRepository {
     }
 
     /**
-     * Insert a batch of candidates for a doc. ON CONFLICT updates metadata
-     * (hash, topicTag, sourceSpan) in place. Used for ADDED docs.
+     * No-embedding overload — embedding columns stored as NULL.
+     * Used by tests that exercise repo/service logic without the embedding pipeline.
+     * Backfill fills NULL embeddings afterward.
      */
     public void upsertAll(UUID userId, SourceType sourceType, String sourceRef,
                           String sourceContentHash, List<ExtractedConcept> concepts) {
@@ -43,6 +47,62 @@ public class ConceptCandidateRepository {
                     userId, sourceType.name(), sourceRef, sourceContentHash,
                     c.title(), c.topicTag(), c.sourceSpan());
         }
+    }
+
+    /**
+     * Insert/update a batch of candidates for a doc, including their embedding vectors.
+     * {@code embeddings} is parallel to {@code concepts} (same index = same concept).
+     * The vector is written in the same upsert so a row never holds a stale embedding.
+     *
+     * <p>Text representation used for embedding: {@code title + "\n" + sourceSpan}
+     * (defined in {@link CandidateIngestionService#toEmbedText}). All callers must use
+     * the same representation so stored vectors and query vectors share the same space.
+     */
+    public void upsertAll(UUID userId, SourceType sourceType, String sourceRef,
+                          String sourceContentHash, List<ExtractedConcept> concepts,
+                          List<float[]> embeddings, String embeddingModel, Instant embeddedAt) {
+        Timestamp embeddedTs = Timestamp.from(embeddedAt);
+        for (int i = 0; i < concepts.size(); i++) {
+            ExtractedConcept c = concepts.get(i);
+            String vecStr = formatVector(embeddings.get(i));
+            jdbc.update("""
+                    INSERT INTO concept_candidate
+                        (user_id, source_type, source_ref, source_content_hash,
+                         title, topic_tag, source_span, lifecycle_state,
+                         embedding, embedding_model, embedded_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 'CANDIDATE', CAST(? AS vector), ?, ?)
+                    ON CONFLICT (user_id, source_type, source_ref, title) DO UPDATE SET
+                        source_content_hash = EXCLUDED.source_content_hash,
+                        topic_tag           = EXCLUDED.topic_tag,
+                        source_span         = EXCLUDED.source_span,
+                        embedding           = EXCLUDED.embedding,
+                        embedding_model     = EXCLUDED.embedding_model,
+                        embedded_at         = EXCLUDED.embedded_at,
+                        updated_at          = now()
+                    """,
+                    userId, sourceType.name(), sourceRef, sourceContentHash,
+                    c.title(), c.topicTag(), c.sourceSpan(),
+                    vecStr, embeddingModel, embeddedTs);
+        }
+    }
+
+    /** Update embedding for a single existing candidate. Used by backfill. */
+    public void saveEmbedding(UUID conceptId, float[] embedding, String modelId, Instant embeddedAt) {
+        jdbc.update("""
+                UPDATE concept_candidate
+                SET embedding = CAST(? AS vector), embedding_model = ?, embedded_at = ?, updated_at = now()
+                WHERE concept_id = ?
+                """,
+                formatVector(embedding), modelId, Timestamp.from(embeddedAt), conceptId);
+    }
+
+    static String formatVector(float[] v) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < v.length; i++) {
+            if (i > 0) sb.append(',');
+            sb.append(v[i]);
+        }
+        return sb.append(']').toString();
     }
 
     /** Delete all candidates belonging to a specific doc. Used for CHANGED and REMOVED docs. */
