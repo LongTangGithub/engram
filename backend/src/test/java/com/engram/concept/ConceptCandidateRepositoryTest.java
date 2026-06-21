@@ -1,10 +1,8 @@
 package com.engram.concept;
 
 import com.engram.ingest.SourceType;
-import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
+import com.engram.TestDatabase;
 import org.flywaydb.core.Flyway;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -18,21 +16,9 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ConceptCandidateRepositoryTest {
 
-    private static EmbeddedPostgres pg;
-    private static DataSource ds;
+    private static final DataSource ds = TestDatabase.dataSource();
 
     private ConceptCandidateRepository repo;
-
-    @BeforeAll
-    static void startPostgres() throws Exception {
-        pg = EmbeddedPostgres.start();
-        ds = pg.getPostgresDatabase();
-    }
-
-    @AfterAll
-    static void stopPostgres() throws Exception {
-        if (pg != null) pg.close();
-    }
 
     @BeforeEach
     void setUp() {

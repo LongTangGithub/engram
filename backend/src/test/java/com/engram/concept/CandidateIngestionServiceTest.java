@@ -1,12 +1,11 @@
 package com.engram.concept;
 
+import com.engram.TestDatabase;
+import com.engram.embedding.FakeEmbeddingProvider;
 import com.engram.ingest.IngestedDocument;
 import com.engram.ingest.ObsidianFolderAdapter;
 import com.engram.ingest.SourceType;
-import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 import org.flywaydb.core.Flyway;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -26,34 +25,24 @@ import static org.mockito.Mockito.*;
 
 class CandidateIngestionServiceTest {
 
-    private static EmbeddedPostgres pg;
-    private static DataSource ds;
+    private static final DataSource ds = TestDatabase.dataSource();
 
     @TempDir Path vault;
 
     private Extractor extractor;
+    private FakeEmbeddingProvider embedder;
     private ConceptCandidateRepository repo;
     private CandidateIngestionService service;
     private UUID userId;
-
-    @BeforeAll
-    static void startPostgres() throws Exception {
-        pg = EmbeddedPostgres.start();
-        ds = pg.getPostgresDatabase();
-    }
-
-    @AfterAll
-    static void stopPostgres() throws Exception {
-        if (pg != null) pg.close();
-    }
 
     @BeforeEach
     void setUp() {
         Flyway.configure().dataSource(ds).cleanDisabled(false).load().clean();
         Flyway.configure().dataSource(ds).load().migrate();
         extractor = mock(Extractor.class);
-        repo = new ConceptCandidateRepository(new JdbcTemplate(ds));
-        service = new CandidateIngestionService(extractor, repo);
+        embedder  = new FakeEmbeddingProvider();
+        repo      = new ConceptCandidateRepository(new JdbcTemplate(ds));
+        service   = new CandidateIngestionService(extractor, repo, embedder);
         userId = UUID.randomUUID();
     }
 

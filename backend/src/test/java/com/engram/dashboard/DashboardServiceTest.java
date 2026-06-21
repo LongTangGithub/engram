@@ -1,5 +1,6 @@
 package com.engram.dashboard;
 
+import com.engram.TestDatabase;
 import com.engram.concept.ConceptCandidateRepository;
 import com.engram.concept.ExtractedConcept;
 import com.engram.ingest.SourceType;
@@ -8,7 +9,6 @@ import com.engram.quiz.ReviewService;
 import com.engram.review.ReviewEventRepository;
 import com.engram.review.SchedulerProjection;
 import com.engram.scheduler.Fsrs;
-import io.zonky.test.db.postgres.embedded.EmbeddedPostgres;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.*;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -21,35 +21,14 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/**
- * Integration tests for DashboardService.
- * Uses embedded-postgres; no Spring context; wires ReviewService to seed concepts.
- *
- * FSRS retrievability used in assertions:
- *   THRIVING  — Again rating (s≈0.212), reviewed now      → elapsed≈0   → R≈1.0
- *   FADING    — Again rating (s≈0.212), reviewed 3d ago   → elapsed=3   → R≈0.66
- *   DORMANT   — Again rating (s≈0.212), reviewed 600d ago → elapsed=600 → R≈0.29
- */
 class DashboardServiceTest {
 
-    private static EmbeddedPostgres pg;
-    private static DataSource ds;
+    private static final DataSource ds = TestDatabase.dataSource();
 
     private DashboardService dashboard;
     private ReviewService reviewService;
     private ConceptCandidateRepository ccRepo;
     private UUID userId;
-
-    @BeforeAll
-    static void startPostgres() throws Exception {
-        pg = EmbeddedPostgres.start();
-        ds = pg.getPostgresDatabase();
-    }
-
-    @AfterAll
-    static void stopPostgres() throws Exception {
-        if (pg != null) pg.close();
-    }
 
     @BeforeEach
     void setUp() {

@@ -1,9 +1,11 @@
 package com.engram.concept;
 
+import com.engram.embedding.EmbeddingProvider;
 import com.engram.ingest.IngestedDocument;
 import com.engram.ingest.SourceAdapter;
 import com.engram.ingest.SyncDiff;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -14,10 +16,13 @@ public class CandidateIngestionService {
 
     private final Extractor extractor;
     private final ConceptCandidateRepository repo;
+    private final EmbeddingProvider embedder;
 
-    public CandidateIngestionService(Extractor extractor, ConceptCandidateRepository repo) {
+    public CandidateIngestionService(Extractor extractor, ConceptCandidateRepository repo,
+                                     EmbeddingProvider embedder) {
         this.extractor = extractor;
-        this.repo = repo;
+        this.repo      = repo;
+        this.embedder  = embedder;
     }
 
     public IngestionSummary ingest(SourceAdapter adapter, UUID userId) {
@@ -26,12 +31,12 @@ public class CandidateIngestionService {
         SyncDiff.SyncResult diff = SyncDiff.diff(current, priorHashes);
 
         int candidatesCreated = 0;
-        int llmCallsMade = 0;
+        int llmCallsMade      = 0;
 
         for (IngestedDocument doc : diff.added()) {
             List<ExtractedConcept> concepts = dedupeByTitle(extractor.extract(doc));
             llmCallsMade++;
-            repo.upsertAll(userId, doc.sourceType(), doc.sourceRef(), doc.contentHash(), concepts);
+            persistWithEmbeddings(userId, doc, concepts);
             candidatesCreated += concepts.size();
         }
 
@@ -39,7 +44,7 @@ public class CandidateIngestionService {
             repo.deleteByDoc(userId, doc.sourceType(), doc.sourceRef());
             List<ExtractedConcept> concepts = dedupeByTitle(extractor.extract(doc));
             llmCallsMade++;
-            repo.upsertAll(userId, doc.sourceType(), doc.sourceRef(), doc.contentHash(), concepts);
+            persistWithEmbeddings(userId, doc, concepts);
             candidatesCreated += concepts.size();
         }
 
@@ -54,6 +59,33 @@ public class CandidateIngestionService {
                 diff.removed().size(),
                 candidatesCreated,
                 llmCallsMade);
+    }
+
+    /**
+     * Text representation used for embedding.
+     * MUST be consistent between ingest and backfill — both call this method.
+     * Stored vectors and query vectors must share the same input space.
+     */
+    static String toEmbedText(String title, String sourceSpan) {
+        if (sourceSpan == null || sourceSpan.isBlank()) return title;
+        return title + "\n" + sourceSpan;
+    }
+
+    // ── internals ────────────────────────────────────────────────────────────
+
+    private void persistWithEmbeddings(UUID userId, IngestedDocument doc,
+                                       List<ExtractedConcept> concepts) {
+        if (concepts.isEmpty()) {
+            repo.upsertAll(userId, doc.sourceType(), doc.sourceRef(), doc.contentHash(),
+                    concepts, List.of(), embedder.modelId(), Instant.now());
+            return;
+        }
+        List<String> texts = concepts.stream()
+                .map(c -> toEmbedText(c.title(), c.sourceSpan()))
+                .toList();
+        List<float[]> vecs = embedder.embedAll(texts);  // one batch call per doc
+        repo.upsertAll(userId, doc.sourceType(), doc.sourceRef(), doc.contentHash(),
+                concepts, vecs, embedder.modelId(), Instant.now());
     }
 
     // Last-wins on duplicate title — matches DB ON CONFLICT DO UPDATE behavior.

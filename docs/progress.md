@@ -29,7 +29,7 @@ When finishing:
 
 ## Current Focus
 
-**Phase 1 COMPLETE.** ENG-1 through ENG-7 shipped. Next: Phase 2 (ENG-8 deep activation pipeline).
+**Phase 1 COMPLETE + embedding pipeline shipped.** ENG-1 through ENG-7 done. Embedding pipeline (ENG-8 prereq) done. Next: ENG-8 deep activation pipeline (quiz card generation with RAG).
 
 ---
 
@@ -46,6 +46,10 @@ Work currently underway. One entry per concrete unit of work (feature, file, mig
 ## Completed
 
 Most recent at the top. Trim aggressively — anything older than the current milestone can be archived to `progress-archive.md` or deleted.
+
+### 2026-06-21
+
+- **Embedding pipeline (ENG-8 prereq)** — COMPLETE. All 84 tests pass (0 failures). V3 Flyway migration adds `vector(1536)` column + HNSW index (`m=16, ef_construction=200`). `EmbeddingProvider` interface (`embed`, `embedAll`, `dimension`, `modelId`). `FakeEmbeddingProvider` (deterministic hash → L2-normalized pseudo-vector, `callCount()` for zero-embed assertions). `OpenAiEmbeddingProvider` (direct HTTP, batch `embedAll`, text-embedding-3-small, 1536 dims). `CandidateIngestionService` now embeds ADDED and CHANGED docs only — UNCHANGED never touches the embedder (zero-embed test passes). `CandidateVectorRepository`: `findNearestNeighbors(userId, conceptId, k)` (cosine kNN, user-scoped, excludes self) + `backfill(userId, provider)` (idempotent). Wired in `EngramConfig`. Test infra: Testcontainers `pgvector/pgvector:pg16` with Flyway clean+migrate in `@BeforeEach`. No external dependency. Branch: `embedding-pipeline`. See learnings.md for Docker Desktop / TC 1.20.6 socket fix notes.
 
 ### 2026-06-14
 
@@ -128,12 +132,18 @@ Significant technical or product decisions made during the project. Append-only 
 - **Alternatives considered:** jOOQ DSL without codegen (possible but loses type safety); jOOQ with codegen (right call when schema stabilizes, likely after ENG-5).
 - **Consequences:** Can migrate to jOOQ codegen when schema is stable. RowMapper boilerplate stays in repo classes for now.
 
+### 2026-06-21 — Testcontainers with pgvector/pgvector:pg16 (supersedes shared-DB approach)
+
+- **Context:** V3 migration adds pgvector. `embedded-postgres` can't run it. Initial attempt at shared `engram_test` DB (no isolation, manual setup required) was rejected. Three interlocking Docker Desktop / TC issues blocked Testcontainers until now.
+- **Decision:** Testcontainers `pgvector/pgvector:pg16`, single container per JVM, Flyway clean+migrate in `@BeforeEach`. Full isolation, no external dependency.
+- **Fix:** (1) `docker.raw.sock` as `docker.host` in `~/.testcontainers.properties`; (2) `systemProperty("api.version", "1.44")` to override docker-java's 1.32 default; (3) `environment("TESTCONTAINERS_RYUK_DISABLED", "true")` — ryuk bind-mount fails on docker.raw.sock; (4) `resolutionStrategy.eachDependency` to force TC 1.20.6 past Spring Boot BOM's 1.19.8 pin.
+- **Consequences:** CI needs Docker. No manual DB creation step.
+
 ### 2026-06-12 — embedded-postgres over Testcontainers for integration tests
 
 - **Context:** Testcontainers' docker-java client gets a stub 400 from Docker Desktop's gateway socket on this machine even though `docker run` works via the CLI. Root cause: docker-java negotiates differently than the Docker CLI.
 - **Decision:** `io.zonky.test:embedded-postgres`. Real Postgres binary, no Docker dependency, ~1s startup.
-- **Alternatives considered:** Fix Docker Desktop socket (needs UI change by user); Colima (not installed); raw Postgres.app (not running).
-- **Consequences:** No Docker needed for tests. CI must have embedded-postgres available (it bundles the binary, so it works on Linux/macOS without a separate install).
+- **Superseded:** 2026-06-21 — pgvector requirement forced switch to `engram_test` in dev container. embedded-postgres removed.
 
 ---
 
