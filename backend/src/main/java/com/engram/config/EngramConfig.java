@@ -1,5 +1,12 @@
 package com.engram.config;
 
+import com.engram.activation.ActivatedCardRepository;
+import com.engram.activation.ActivationService;
+import com.engram.activation.AnthropicClaudeClient;
+import com.engram.activation.ClaudeClient;
+import com.engram.activation.Distractor;
+import com.engram.activation.GenerationOrchestrator;
+import com.engram.activation.Professor;
 import com.engram.concept.CandidateIngestionService;
 import com.engram.concept.CandidateVectorRepository;
 import com.engram.concept.ConceptCandidateRepository;
@@ -89,6 +96,39 @@ public class EngramConfig {
     @Bean
     DashboardService dashboardService(DashboardRepository dashboardRepository, RetrievabilityEngine engine) {
         return new DashboardService(dashboardRepository, engine);
+    }
+
+    @Bean
+    ClaudeClient claudeClient() {
+        return new AnthropicClaudeClient();
+    }
+
+    @Bean
+    Professor professor(ClaudeClient claudeClient) {
+        return new Professor(claudeClient);
+    }
+
+    @Bean
+    Distractor distractor(ClaudeClient claudeClient) {
+        return new Distractor(claudeClient);
+    }
+
+    @Bean
+    GenerationOrchestrator generationOrchestrator(Professor professor, Distractor distractor) {
+        return new GenerationOrchestrator(professor, distractor);
+    }
+
+    @Bean
+    ActivatedCardRepository activatedCardRepository(JdbcTemplate jdbc) {
+        return new ActivatedCardRepository(jdbc);
+    }
+
+    @Bean
+    ActivationService activationService(ConceptCandidateRepository conceptRepo,
+                                        CandidateVectorRepository vectorRepo,
+                                        ActivatedCardRepository cardRepo,
+                                        GenerationOrchestrator orchestrator) {
+        return new ActivationService(conceptRepo, vectorRepo, cardRepo, orchestrator);
     }
 
     @Bean

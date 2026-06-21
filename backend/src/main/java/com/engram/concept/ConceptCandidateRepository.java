@@ -158,6 +158,29 @@ public class ConceptCandidateRepository {
                 """, conceptId);
     }
 
+    public Optional<ConceptCandidate> findById(UUID conceptId) {
+        List<ConceptCandidate> rows = jdbc.query(
+                "SELECT * FROM concept_candidate WHERE concept_id = ?",
+                rowMapper(), conceptId);
+        return rows.isEmpty() ? Optional.empty() : Optional.of(rows.get(0));
+    }
+
+    public List<ConceptCandidate> findByIds(List<UUID> ids) {
+        if (ids.isEmpty()) return List.of();
+        String placeholders = String.join(",", java.util.Collections.nCopies(ids.size(), "?"));
+        return jdbc.query(
+                "SELECT * FROM concept_candidate WHERE concept_id IN (" + placeholders + ")",
+                rowMapper(),
+                ids.toArray());
+    }
+
+    public void setActivatedAt(UUID conceptId, Instant activatedAt) {
+        jdbc.update("""
+                UPDATE concept_candidate SET activated_at = ?, updated_at = now()
+                WHERE concept_id = ?
+                """, Timestamp.from(activatedAt), conceptId);
+    }
+
     public List<ConceptCandidate> findByDoc(UUID userId, SourceType sourceType, String sourceRef) {
         return jdbc.query(
                 "SELECT * FROM concept_candidate WHERE user_id = ? AND source_type = ? AND source_ref = ? ORDER BY created_at",

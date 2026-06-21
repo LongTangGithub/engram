@@ -29,7 +29,7 @@ When finishing:
 
 ## Current Focus
 
-**Phase 1 COMPLETE + embedding pipeline shipped.** ENG-1 through ENG-7 done. Embedding pipeline (ENG-8 prereq) done. Next: ENG-8 deep activation pipeline (quiz card generation with RAG).
+**ENG-8a COMPLETE.** AI Activation Core shipped — generate-once card generation with vault-sourced distractors, cost provenance, orthogonal lifecycle. Next: ENG-8b wires review flow + frontend; ENG-9 is MCQ grading (contestable).
 
 ---
 
@@ -39,7 +39,7 @@ Work currently underway. One entry per concrete unit of work (feature, file, mig
 
 | Date Started | Item | Owner / Branch | Status Notes |
 |--------------|------|----------------|--------------|
-| *(none)* | | | |
+| 2026-06-21 | ENG-8b: wire activation into review flow + frontend | — | Not started |
 
 ---
 
@@ -48,6 +48,8 @@ Work currently underway. One entry per concrete unit of work (feature, file, mig
 Most recent at the top. Trim aggressively — anything older than the current milestone can be archived to `progress-archive.md` or deleted.
 
 ### 2026-06-21
+
+- **ENG-8a: AI Activation Core** — COMPLETE. 94/94 tests pass (10 new + 84 prior). V4 Flyway migration: `activated_card` table (generate-once via UNIQUE on `concept_id` + `idempotency_key`) + `activated_at` column on `concept_candidate` (orthogonal to `lifecycle_state`). `com.engram.activation` package: `ClaudeClient` interface + `AnthropicClaudeClient` (direct HTTP, no LangChain4j), `ModelTier` (CHEAP=Haiku/Professor, EXPENSIVE=Sonnet/Distractor only), `Professor` (RAG-grounded in concept's `sourceSpan`), `Distractor` (vault-sourced via kNN neighbors; cold vault = sourceSpan fallback), `GenerationOrchestrator` (fixed pipeline, cost aggregation), `ActivatedCard` record (full provenance: tokens, cost_micros, model, prompt version), `ActivatedCardRepository` (JSONB distractors), `ActivationService` (generate-once cache gate — second call returns cached, zero LLM calls). `FakeClaudeClient` captures prompts for assertion. Red-first proof: `generateOnce` test shows `expected: <0> but was: <2>` without cache gate; green after restore. Wired in `EngramConfig` (plain beans, no scanBasePackages change). Branch: `ENG-8a-activation-core`.
 
 - **Embedding pipeline (ENG-8 prereq)** — COMPLETE. All 84 tests pass (0 failures). V3 Flyway migration adds `vector(1536)` column + HNSW index (`m=16, ef_construction=200`). `EmbeddingProvider` interface (`embed`, `embedAll`, `dimension`, `modelId`). `FakeEmbeddingProvider` (deterministic hash → L2-normalized pseudo-vector, `callCount()` for zero-embed assertions). `OpenAiEmbeddingProvider` (direct HTTP, batch `embedAll`, text-embedding-3-small, 1536 dims). `CandidateIngestionService` now embeds ADDED and CHANGED docs only — UNCHANGED never touches the embedder (zero-embed test passes). `CandidateVectorRepository`: `findNearestNeighbors(userId, conceptId, k)` (cosine kNN, user-scoped, excludes self) + `backfill(userId, provider)` (idempotent). Wired in `EngramConfig`. Test infra: Testcontainers `pgvector/pgvector:pg16` with Flyway clean+migrate in `@BeforeEach`. No external dependency. Branch: `embedding-pipeline`. See learnings.md for Docker Desktop / TC 1.20.6 socket fix notes.
 
@@ -92,6 +94,8 @@ Planned but not started. Group by area (`apps/web`, `services/billing`, `infra`,
 
 ### backend/ (Phase 2)
 
+- ~~ENG-8a: AI Activation Core~~ — done 2026-06-21
+- ENG-8b: Wire activation into review flow + frontend (REST endpoint, MCQ card surface)
 - ENG-8: Deep activation pipeline (candidate → card, with RAG + vault-sourced distractors)
 - ENG-9: MCQ format + AI grading (contestable)
 - ENG-10: Notion source adapter (hosted OAuth sync)
@@ -131,6 +135,19 @@ Significant technical or product decisions made during the project. Append-only 
 - **Decision:** JdbcTemplate. Explicit SQL, no ORM, no codegen. Satisfies the core requirement (no JPA, no mutable-entity model).
 - **Alternatives considered:** jOOQ DSL without codegen (possible but loses type safety); jOOQ with codegen (right call when schema stabilizes, likely after ENG-5).
 - **Consequences:** Can migrate to jOOQ codegen when schema is stable. RowMapper boilerplate stays in repo classes for now.
+
+### 2026-06-21 — ENG-8a: ClaudeClient as interface (not concrete class)
+
+- **Context:** Tests need to fake LLM calls to assert on prompts passed in and count call volume.
+- **Decision:** `ClaudeClient` is an interface; `AnthropicClaudeClient` is the impl. `FakeClaudeClient` in test package captures every `(tier, system, userText)` call.
+- **Alternatives considered:** Mockito mock of concrete class (works but hides what prompts are sent); CostLog @Component (promoted from spike — swallows usage into side-channel, can't assert totals).
+- **Consequences:** Generate-once test can assert call count = 0 on second activate. RAG-grounding and vault-sourced tests assert on prompt content, not outputs.
+
+### 2026-06-21 — ENG-8a: activated_at ORTHOGONAL to lifecycle_state
+
+- **Context:** Spec locks that ACTIVATED and SEEDED are independent axes.
+- **Decision:** `activated_at TIMESTAMPTZ` added to `concept_candidate` (nullable); `lifecycle_state` is NOT modified by `ActivationService.activate()`. A concept can be SEEDED before activated (reviewed as cloze first) or CANDIDATE after (activated but never reviewed).
+- **Consequences:** `ReviewService.flipToSeeded()` is unaffected. No ordering dependency between activation and review flows.
 
 ### 2026-06-21 — Testcontainers with pgvector/pgvector:pg16 (supersedes shared-DB approach)
 
