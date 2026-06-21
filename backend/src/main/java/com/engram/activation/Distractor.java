@@ -10,6 +10,8 @@ import java.util.List;
 // groundingNote = concept's sourceSpan + optional vault neighbor context.
 public class Distractor {
 
+    static final String PROMPT_VERSION = "distractor-v1";
+
     static final String SYSTEM = """
             You write 3 plausible but INCORRECT answer options for a recall question.
             Each must be tempting to someone with shallow understanding, yet genuinely wrong.

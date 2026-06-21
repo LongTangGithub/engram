@@ -29,7 +29,7 @@ When finishing:
 
 ## Current Focus
 
-**ENG-8a COMPLETE.** AI Activation Core shipped — generate-once card generation with vault-sourced distractors, cost provenance, orthogonal lifecycle. Next: ENG-8b wires review flow + frontend; ENG-9 is MCQ grading (contestable).
+**ENG-8b COMPLETE.** Phase 2 deep activation wired end-to-end: MCQ card REST endpoints, lazy activation at quiz time with loading state, Law-1-compliant MCQ UI, cloze fallback path. Next: ENG-9 (MCQ grading — contestable), or ENG-10 (Notion source adapter).
 
 ---
 
@@ -39,7 +39,7 @@ Work currently underway. One entry per concrete unit of work (feature, file, mig
 
 | Date Started | Item | Owner / Branch | Status Notes |
 |--------------|------|----------------|--------------|
-| 2026-06-21 | ENG-8b: wire activation into review flow + frontend | — | Not started |
+| *(empty)* |  |  |  |
 
 ---
 
@@ -48,6 +48,8 @@ Work currently underway. One entry per concrete unit of work (feature, file, mig
 Most recent at the top. Trim aggressively — anything older than the current milestone can be archived to `progress-archive.md` or deleted.
 
 ### 2026-06-21
+
+- **ENG-8b: Activation Wiring + Frontend** — COMPLETE. 97/97 backend tests pass (3 new: A1 truly-cold-vault, A2 repair-then-retry, A2 persistent-failure). 31/31 frontend tests pass (11 new AiReviewCard Law-1 tests). TypeScript clean, `pnpm build` green. Part A (follow-ups to 8a): `Distractor.PROMPT_VERSION = "distractor-v1"`; `generation_prompt_version` now stores `"professor-v1/distractor-v1"`; `GenerationOrchestrator` does single bounded repair on answer-colliding distractors with retry cost accumulation; typed `ActivationGenerationException`. Part B (backend REST): `ActivationController` — `POST /api/activate` (lazy generate-once, returns shuffled options, NO correctAnswer pre-reveal) + `GET /api/activate/{conceptId}/reveal` (reveal-gated answer fetch). `GET /api/review/next` extended to return `NextCardResponse` with `cardType: cloze|mcq`; AI card served when `activated_card` exists (READ-ONLY, no generation). `SubmitRequest` now carries `format` field for event log provenance. Part C (frontend): `AiReviewCard.tsx` (Law-1 MCQ: all 4 options visible pre-reveal, no correct indicator, grade buttons only after Reveal + parent sets correctAnswer); review page handles mcq and cloze paths, lazy auto-activation with "Writing your question…" loading state, cloze fallback on activation failure (C4). `lib/api.ts` updated with new types + `activateCard`/`revealCard` helpers. Note: `api-types.ts` not yet regenerated (needs backend+Postgres running — see frontend/CLAUDE.md); types defined locally in `lib/api.ts` until regen. Branch: `ENG-8b-activation-wiring`.
 
 - **ENG-8a: AI Activation Core** — COMPLETE. 94/94 tests pass (10 new + 84 prior). V4 Flyway migration: `activated_card` table (generate-once via UNIQUE on `concept_id` + `idempotency_key`) + `activated_at` column on `concept_candidate` (orthogonal to `lifecycle_state`). `com.engram.activation` package: `ClaudeClient` interface + `AnthropicClaudeClient` (direct HTTP, no LangChain4j), `ModelTier` (CHEAP=Haiku/Professor, EXPENSIVE=Sonnet/Distractor only), `Professor` (RAG-grounded in concept's `sourceSpan`), `Distractor` (vault-sourced via kNN neighbors; cold vault = sourceSpan fallback), `GenerationOrchestrator` (fixed pipeline, cost aggregation), `ActivatedCard` record (full provenance: tokens, cost_micros, model, prompt version), `ActivatedCardRepository` (JSONB distractors), `ActivationService` (generate-once cache gate — second call returns cached, zero LLM calls). `FakeClaudeClient` captures prompts for assertion. Red-first proof: `generateOnce` test shows `expected: <0> but was: <2>` without cache gate; green after restore. Wired in `EngramConfig` (plain beans, no scanBasePackages change). Branch: `ENG-8a-activation-core`.
 
@@ -95,8 +97,8 @@ Planned but not started. Group by area (`apps/web`, `services/billing`, `infra`,
 ### backend/ (Phase 2)
 
 - ~~ENG-8a: AI Activation Core~~ — done 2026-06-21
-- ENG-8b: Wire activation into review flow + frontend (REST endpoint, MCQ card surface)
-- ENG-8: Deep activation pipeline (candidate → card, with RAG + vault-sourced distractors)
+- ~~ENG-8b: Wire activation into review flow + frontend~~ — done 2026-06-21
+- ~~ENG-8: Deep activation pipeline~~ — done (ENG-8a + ENG-8b)
 - ENG-9: MCQ format + AI grading (contestable)
 - ENG-10: Notion source adapter (hosted OAuth sync)
 

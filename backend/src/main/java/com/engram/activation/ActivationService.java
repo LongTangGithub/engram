@@ -52,7 +52,7 @@ public class ActivationService {
                 result.answer(),
                 result.distractors(),
                 result.generationModel(),
-                Professor.PROMPT_VERSION,
+                Professor.PROMPT_VERSION + "/" + Distractor.PROMPT_VERSION,
                 result.totalInputTokens(),
                 result.totalOutputTokens(),
                 result.costMicros(),
