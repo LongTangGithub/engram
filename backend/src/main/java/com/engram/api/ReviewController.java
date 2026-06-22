@@ -3,6 +3,7 @@ package com.engram.api;
 import com.engram.activation.ActivatedCard;
 import com.engram.activation.ActivatedCardRepository;
 import com.engram.quiz.ClozeCard;
+import com.engram.quiz.McqGradeResult;
 import com.engram.quiz.ReviewResult;
 import com.engram.quiz.ReviewService;
 import org.springframework.http.ResponseEntity;
@@ -49,6 +50,7 @@ public class ReviewController {
     /**
      * POST /api/review/submit
      * Records a self-graded review and returns the updated scheduler state.
+     * Used for cloze and as the MCQ self-grade fallback path.
      */
     @PostMapping("/submit")
     public ReviewResultResponse submit(@RequestBody SubmitRequest req) {
@@ -57,6 +59,21 @@ public class ReviewController {
                 req.clientEventId(), req.reviewedAt(),
                 req.format() != null ? req.format() : "cloze");
         return ReviewResultResponse.from(result);
+    }
+
+    /**
+     * POST /api/review/submit-mcq  (ENG-9)
+     * Auto-grades an MCQ pick SERVER-SIDE: the client sends which option it picked, the server
+     * decides right/wrong against the stored correct answer (never shipped pre-commit — Law 1),
+     * maps correct→Good / wrong→Again, records the event, and returns the scheduler result PLUS
+     * the now-revealable correct answer and whether the pick was right.
+     */
+    @PostMapping("/submit-mcq")
+    public McqResultResponse submitMcq(@RequestBody McqSubmitRequest req) {
+        McqGradeResult result = reviewService.submitMcqReview(
+                req.userId(), req.conceptId(), req.selectedOption(),
+                req.clientEventId(), req.reviewedAt());
+        return McqResultResponse.from(result);
     }
 
     // ── DTOs ─────────────────────────────────────────────────────────────────
@@ -96,6 +113,28 @@ public class ReviewController {
     public record ReviewResultResponse(double retrievabilityNow, Instant dueAt, String lifecycleState) {
         static ReviewResultResponse from(ReviewResult r) {
             return new ReviewResultResponse(r.retrievabilityNow(), r.dueAt(), r.lifecycleState());
+        }
+    }
+
+    public record McqSubmitRequest(
+            UUID userId,
+            UUID conceptId,
+            String cardId,          // echoed for provenance; server grades by conceptId (UNIQUE per card)
+            String selectedOption,  // the option text the user picked
+            String clientEventId,   // caller-generated UUID string for idempotency
+            Instant reviewedAt
+    ) {}
+
+    public record McqResultResponse(
+            double retrievabilityNow,
+            Instant dueAt,
+            String lifecycleState,
+            boolean isCorrect,      // server-decided outcome
+            String correctAnswer    // revealable now that the user has committed (post-commit only)
+    ) {
+        static McqResultResponse from(McqGradeResult r) {
+            return new McqResultResponse(r.retrievabilityNow(), r.dueAt(), r.lifecycleState(),
+                    r.isCorrect(), r.correctAnswer());
         }
     }
 }

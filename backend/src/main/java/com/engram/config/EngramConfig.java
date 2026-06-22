@@ -92,8 +92,9 @@ public class EngramConfig {
                                 ReviewEventRepository eventRepo,
                                 SchedulerProjection projection,
                                 RetrievabilityEngine engine,
-                                ClozeGenerator clozeGenerator) {
-        return new ReviewService(ccRepo, eventRepo, projection, engine, clozeGenerator);
+                                ClozeGenerator clozeGenerator,
+                                ActivatedCardRepository cardRepo) {
+        return new ReviewService(ccRepo, eventRepo, projection, engine, clozeGenerator, cardRepo);
     }
 
     @Bean
