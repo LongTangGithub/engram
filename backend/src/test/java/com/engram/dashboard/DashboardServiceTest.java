@@ -1,6 +1,7 @@
 package com.engram.dashboard;
 
 import com.engram.TestDatabase;
+import com.engram.activation.ActivatedCardRepository;
 import com.engram.concept.ConceptCandidateRepository;
 import com.engram.concept.ExtractedConcept;
 import com.engram.ingest.SourceType;
@@ -41,7 +42,8 @@ class DashboardServiceTest {
         ReviewEventRepository eventRepo = new ReviewEventRepository(jdbc);
         SchedulerProjection projection  = new SchedulerProjection(jdbc);
 
-        reviewService = new ReviewService(ccRepo, eventRepo, projection, fsrs, new ClozeGenerator());
+        reviewService = new ReviewService(ccRepo, eventRepo, projection, fsrs, new ClozeGenerator(),
+                new ActivatedCardRepository(jdbc));
         dashboard     = new DashboardService(new DashboardRepository(jdbc), fsrs);
 
         userId = UUID.randomUUID();

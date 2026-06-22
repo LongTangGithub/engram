@@ -6,6 +6,7 @@ import AiReviewCard from '@/components/AiReviewCard';
 import {
   fetchNextCard,
   submitReview,
+  submitMcqReview,
   activateCard,
   revealCard,
   type NextCardResponse,
@@ -24,16 +25,23 @@ export default function ReviewPage() {
   const [activating, setActivating] = useState(false);
   // True when /api/activate failed — fall back to cloze
   const [activationFailed, setActivationFailed] = useState(false);
-  // Set after user clicks Reveal on the MCQ card
+  // Set after the user commits (auto-grade response) or clicks Reveal (self-grade fallback)
   const [correctAnswer, setCorrectAnswer] = useState<string | null>(null);
+  // The MCQ option the user committed to (pick-to-grade); null until they click one
+  const [picked, setPicked] = useState<string | null>(null);
+  // Switch the MCQ card to the reveal → self-grade flow when auto-grading fails
+  const [selfGradeFallback, setSelfGradeFallback] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastResult, setLastResult] = useState<{ retrievability: number; dueAt: string } | null>(null);
+  const [lastResult, setLastResult] =
+    useState<{ retrievability: number; dueAt: string; isCorrect?: boolean } | null>(null);
 
   const loadNext = useCallback(async () => {
     setLoading(true);
     setError(null);
     setLastResult(null);
     setCorrectAnswer(null);
+    setPicked(null);
+    setSelfGradeFallback(false);
     setActivating(false);
     setActivationFailed(false);
     try {
@@ -78,6 +86,34 @@ export default function ReviewPage() {
     } catch {
       // If reveal fails, show a fallback (non-fatal)
       setCorrectAnswer('(unavailable)');
+    }
+  };
+
+  // Pick-to-grade (primary MCQ path): the click IS the commit. Server grades and reveals.
+  const handlePick = async (option: string) => {
+    if (!card) return;
+    setPicked(option);
+    try {
+      const result = await submitMcqReview({
+        userId: DEMO_USER_ID,
+        conceptId: card.conceptId,
+        cardId: card.cardId ?? undefined,
+        selectedOption: option,
+        clientEventId: randomUUID(),
+        reviewedAt: new Date().toISOString(),
+      });
+      setCorrectAnswer(result.correctAnswer);
+      setLastResult({
+        retrievability: result.retrievabilityNow ?? 0,
+        dueAt: result.dueAt ?? '',
+        isCorrect: result.isCorrect,
+      });
+      await new Promise(r => setTimeout(r, 1500));
+      loadNext();
+    } catch {
+      // Auto-grade failed — fall back to reveal → self-grade so the user isn't stuck.
+      setPicked(null);
+      setSelfGradeFallback(true);
     }
   };
 
@@ -150,6 +186,9 @@ export default function ReviewPage() {
               question={card.question ?? ''}
               options={card.options ?? []}
               correctAnswer={correctAnswer}
+              picked={picked}
+              onPick={handlePick}
+              selfGradeFallback={selfGradeFallback}
               onReveal={handleReveal}
               onGrade={handleGrade}
             />
@@ -172,6 +211,11 @@ export default function ReviewPage() {
 
         {lastResult && (
           <p className="text-center text-sm text-gray-400">
+            {lastResult.isCorrect !== undefined && (
+              <span className={lastResult.isCorrect ? 'text-green-600' : 'text-red-500'}>
+                {lastResult.isCorrect ? 'Correct' : 'Incorrect'} ·{' '}
+              </span>
+            )}
             Retrievability {(lastResult.retrievability * 100).toFixed(0)}% · due{' '}
             {new Date(lastResult.dueAt).toLocaleDateString()}
           </p>

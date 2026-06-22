@@ -1,7 +1,12 @@
 /**
- * Law 1 enforcement for AiReviewCard (MCQ).
- * The correct answer must never appear in the DOM before Reveal is clicked.
- * Grade buttons appear only after Reveal + parent sets correctAnswer.
+ * Law 1 enforcement for AiReviewCard (MCQ), both modes.
+ *
+ * Pick-to-grade (primary, ENG-9): clicking an option commits a pick (calls onPick, not onGrade).
+ * The correct answer / wrong-pick markers appear only AFTER the parent sets correctAnswer (which
+ * only happens post-commit, from the server). Nothing flags the correct option before the click.
+ *
+ * Self-grade (fallback): the ENG-8b reveal → self-grade flow. correctAnswer must not be in the DOM
+ * before Reveal; grade buttons appear only after Reveal + parent sets correctAnswer.
  */
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
@@ -11,19 +16,99 @@ const QUESTION = 'What does spaced repetition optimize?';
 const OPTIONS = ['Short-term memorization', 'Long-term memory retention', 'Random guess', 'Passive re-reading'];
 const CORRECT = 'Long-term memory retention';
 
-function setup(correctAnswer: string | null = null, onReveal = jest.fn(), onGrade = jest.fn()) {
-  return render(
-    <AiReviewCard
-      question={QUESTION}
-      options={OPTIONS}
-      correctAnswer={correctAnswer}
-      onReveal={onReveal}
-      onGrade={onGrade}
-    />
-  );
-}
+// ── Pick-to-grade (primary) ──────────────────────────────────────────────────
 
-describe('AiReviewCard — Law 1 reveal gate', () => {
+describe('AiReviewCard — pick-to-grade (primary)', () => {
+  function setup(
+    picked: string | null = null,
+    correctAnswer: string | null = null,
+    onPick = jest.fn(),
+  ) {
+    return render(
+      <AiReviewCard
+        question={QUESTION}
+        options={OPTIONS}
+        correctAnswer={correctAnswer}
+        picked={picked}
+        onPick={onPick}
+      />
+    );
+  }
+
+  it('shows the question and all 4 options before any pick', () => {
+    setup();
+    expect(screen.getByText(QUESTION)).toBeInTheDocument();
+    OPTIONS.forEach(opt => expect(screen.getByText(opt)).toBeInTheDocument());
+  });
+
+  it('Law 1: no correct or wrong indicator before the user picks', () => {
+    setup();
+    expect(screen.queryByTestId('correct-answer')).toBeNull();
+    expect(screen.queryByTestId('wrong-answer')).toBeNull();
+  });
+
+  it('there is no Reveal button in pick mode (the click IS the commit)', () => {
+    setup();
+    expect(screen.queryByRole('button', { name: /reveal/i })).toBeNull();
+  });
+
+  it('clicking an option calls onPick with that option (not onGrade)', () => {
+    const onPick = jest.fn();
+    setup(null, null, onPick);
+    fireEvent.click(screen.getByText('Random guess'));
+    expect(onPick).toHaveBeenCalledTimes(1);
+    expect(onPick).toHaveBeenCalledWith('Random guess');
+  });
+
+  it('after a WRONG pick + server reveal: correct option marked correct, wrong pick marked wrong', () => {
+    const wrong = 'Short-term memorization';
+    setup(wrong, CORRECT);
+    expect(screen.getByTestId('correct-answer').textContent).toBe(CORRECT);
+    expect(screen.getByTestId('wrong-answer').textContent).toBe(wrong);
+  });
+
+  it('after a CORRECT pick + server reveal: correct option marked, no wrong marker', () => {
+    setup(CORRECT, CORRECT);
+    expect(screen.getByTestId('correct-answer').textContent).toBe(CORRECT);
+    expect(screen.queryByTestId('wrong-answer')).toBeNull();
+  });
+
+  it('committed but server not yet responded (correctAnswer null) shows no markers yet', () => {
+    setup(CORRECT, null); // picked, awaiting grade
+    expect(screen.queryByTestId('correct-answer')).toBeNull();
+    expect(screen.queryByTestId('wrong-answer')).toBeNull();
+  });
+});
+
+// ── Self-grade (fallback) ────────────────────────────────────────────────────
+
+describe('AiReviewCard — self-grade fallback (reveal gate)', () => {
+  function setup(correctAnswer: string | null = null, onReveal = jest.fn(), onGrade = jest.fn()) {
+    return render(
+      <AiReviewCard
+        question={QUESTION}
+        options={OPTIONS}
+        correctAnswer={correctAnswer}
+        selfGradeFallback
+        onReveal={onReveal}
+        onGrade={onGrade}
+      />
+    );
+  }
+
+  function renderRevealed(onGrade = jest.fn()) {
+    return render(
+      <AiReviewCard
+        question={QUESTION}
+        options={OPTIONS}
+        correctAnswer={CORRECT}
+        selfGradeFallback
+        onReveal={jest.fn()}
+        onGrade={onGrade}
+      />
+    );
+  }
+
   it('shows the question before reveal', () => {
     setup();
     expect(screen.getByText(QUESTION)).toBeInTheDocument();
@@ -68,12 +153,12 @@ describe('AiReviewCard — Law 1 reveal gate', () => {
   it('correct option marked after reveal click + parent sets correctAnswer', () => {
     const { rerender } = setup(null);
     fireEvent.click(screen.getByRole('button', { name: /reveal/i }));
-    // Simulate parent fetching /reveal and passing back correctAnswer
     rerender(
       <AiReviewCard
         question={QUESTION}
         options={OPTIONS}
         correctAnswer={CORRECT}
+        selfGradeFallback
         onReveal={jest.fn()}
         onGrade={jest.fn()}
       />
@@ -83,17 +168,15 @@ describe('AiReviewCard — Law 1 reveal gate', () => {
   });
 
   it('grade buttons appear after reveal + correctAnswer is set', () => {
-    // Render with correctAnswer already set — simulates state after reveal fetch completes
     const { rerender } = setup();
     fireEvent.click(screen.getByRole('button', { name: /reveal/i }));
-    // Grade buttons still absent (correctAnswer still null)
     expect(screen.queryByTestId('grade-good')).toBeNull();
-    // Parent sets correctAnswer
     rerender(
       <AiReviewCard
         question={QUESTION}
         options={OPTIONS}
         correctAnswer={CORRECT}
+        selfGradeFallback
         onReveal={jest.fn()}
         onGrade={jest.fn()}
       />
@@ -106,22 +189,14 @@ describe('AiReviewCard — Law 1 reveal gate', () => {
 
   it('clicking a grade button calls onGrade with the correct rating', () => {
     const onGrade = jest.fn();
-    // Render revealed state directly
-    const { rerender } = render(
-      <AiReviewCard
-        question={QUESTION}
-        options={OPTIONS}
-        correctAnswer={null}
-        onReveal={jest.fn()}
-        onGrade={onGrade}
-      />
-    );
+    const { rerender } = setup(null, jest.fn(), onGrade);
     fireEvent.click(screen.getByRole('button', { name: /reveal/i }));
     rerender(
       <AiReviewCard
         question={QUESTION}
         options={OPTIONS}
         correctAnswer={CORRECT}
+        selfGradeFallback
         onReveal={jest.fn()}
         onGrade={onGrade}
       />

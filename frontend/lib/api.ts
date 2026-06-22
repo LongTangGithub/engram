@@ -34,6 +34,25 @@ export interface ReviewResultResponse {
   lifecycleState: string;
 }
 
+// ENG-9 MCQ auto-grade. Defined locally (OpenAPI regen needs backend + Postgres running — see
+// frontend/CLAUDE.md). Regenerate api-types.ts and re-export from there once the backend is up.
+export interface McqSubmitRequest {
+  userId: string;
+  conceptId: string;
+  cardId?: string;        // echoed for provenance; server grades by conceptId
+  selectedOption: string; // the option text the user picked
+  clientEventId: string;
+  reviewedAt: string;
+}
+
+export interface McqResultResponse {
+  retrievabilityNow: number;
+  dueAt: string;
+  lifecycleState: string;
+  isCorrect: boolean;      // server-decided
+  correctAnswer: string;   // revealable now (post-commit only)
+}
+
 export interface ActivateResponse {
   cardId: string;
   conceptId: string;
@@ -62,6 +81,16 @@ export async function submitReview(body: SubmitRequest): Promise<ReviewResultRes
   });
   if (!res.ok) throw new Error(`submitReview failed: ${res.status}`);
   return res.json() as Promise<ReviewResultResponse>;
+}
+
+export async function submitMcqReview(body: McqSubmitRequest): Promise<McqResultResponse> {
+  const res = await fetch(`${BASE}/api/review/submit-mcq`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`submitMcqReview failed: ${res.status}`);
+  return res.json() as Promise<McqResultResponse>;
 }
 
 export async function fetchDashboard(userId: string): Promise<DashboardView> {

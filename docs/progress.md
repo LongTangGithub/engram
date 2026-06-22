@@ -29,7 +29,7 @@ When finishing:
 
 ## Current Focus
 
-**ENG-8b COMPLETE.** Phase 2 deep activation wired end-to-end: MCQ card REST endpoints, lazy activation at quiz time with loading state, Law-1-compliant MCQ UI, cloze fallback path. Next: ENG-9 (MCQ grading — contestable), or ENG-10 (Notion source adapter).
+**ENG-9 COMPLETE (MCQ auto-grading).** Click-to-grade MCQ wired end-to-end: server-side correctness (`POST /api/review/submit-mcq`), correct→Good(3)/wrong→Again(1) mapping, `grading_scheme_version="mcq-auto-v1"`, idempotency-coupled write, pick-to-grade UI with self-grade fallback preserved. AI free-text grading is split out to its own Backlog task (NOT built here). Next: ENG-10 (Notion source adapter) or ENG-11 (metering + pricing gate).
 
 ---
 
@@ -46,6 +46,10 @@ Work currently underway. One entry per concrete unit of work (feature, file, mig
 ## Completed
 
 Most recent at the top. Trim aggressively — anything older than the current milestone can be archived to `progress-archive.md` or deleted.
+
+### 2026-06-22
+
+- **ENG-9: MCQ auto-grading (click-to-grade)** — COMPLETE (code + Docker-free verification; DB-backed tests written, pending a Docker host to execute). Scope: MCQ click-to-grade ONLY — AI free-text grading is split out to its own Backlog task. Backend: `ReviewService.submitMcqReview()` loads the activated card, compares the picked option to the stored `correctAnswer` SERVER-SIDE (case/whitespace-normalized exact string match), maps correct→Good(3) / wrong→Again(1) (never Easy — recognition has scaffolding), records the event with `is_correct` = raw outcome (truth), `fsrs_rating` = derived interpretation, `format="mcq"`, `grading_scheme_version="mcq-auto-v1"`, `expected_answer_ref=cardId`. Reuses the ENG-2 append-then-apply idempotency-coupling rule (extracted a shared private `record(...)` path; self-grade and auto-grade both call it). `POST /api/review/submit-mcq` returns `{retrievabilityNow, dueAt, lifecycleState, isCorrect, correctAnswer}` — correct answer revealed ONLY post-commit. `POST /api/review/submit` (self-grade) kept for cloze + MCQ fallback. Frontend: `AiReviewCard` now pick-to-grade primary (click an option → commit → server grades → correct option green, wrong pick red, advance); self-grade reveal→grade flow preserved behind `selfGradeFallback` for when auto-grade fails. `lib/api.ts` gains `submitMcqReview` + types (defined locally — OpenAPI regen needs a running backend+Postgres, see frontend/CLAUDE.md). **Verified:** backend `compileJava`+`compileTestJava` green; new no-DB Law-1 DTO test passes (2/2 — pre-commit `/activate` + `/review/next` payloads carry options but no `correctAnswer`/correctness flag); frontend `tsc --noEmit` clean, Jest 38/38 (7 new pick-to-grade tests), `next build` green. **NOT verified here (no Docker in this container):** the 5 new DB-backed MCQ grading tests in `ReviewServiceTest` (correct→3, wrong→1, server-side grading without client answer, idempotency, no-card-throws) — they compile but need the pgvector Testcontainer; run in CI/local with Docker. Manual end-to-end (activate → wrong pick → right pick) also blocked on Docker/Postgres. Branch: `ENG-09/mcq-auto-grading`. See learnings.md for server-side-grading / option-id-vs-text / rating-mapping rules.
 
 ### 2026-06-21
 
@@ -99,7 +103,8 @@ Planned but not started. Group by area (`apps/web`, `services/billing`, `infra`,
 - ~~ENG-8a: AI Activation Core~~ — done 2026-06-21
 - ~~ENG-8b: Wire activation into review flow + frontend~~ — done 2026-06-21
 - ~~ENG-8: Deep activation pipeline~~ — done (ENG-8a + ENG-8b)
-- ENG-9: MCQ format + AI grading (contestable)
+- ~~ENG-9: MCQ format + auto-grading~~ — done 2026-06-22 (MCQ click-to-grade only)
+- ENG-9b: AI free-text grading (free-recall / Feynman, contestable) — split out of ENG-9. Server-side LLM grader, `user_answer` quarantined payload (V1-spec §7), `expected_answer_ref` + `grader_prompt_version` + `model_id`, contestable grade (tie → user, no punitive decay — §8). Metered (AI-graded answers, §4).
 - ENG-10: Notion source adapter (hosted OAuth sync)
 
 ### backend/ (Phase 3)
@@ -157,6 +162,19 @@ Significant technical or product decisions made during the project. Append-only 
 - **Decision:** Testcontainers `pgvector/pgvector:pg16`, single container per JVM, Flyway clean+migrate in `@BeforeEach`. Full isolation, no external dependency.
 - **Fix:** (1) `docker.raw.sock` as `docker.host` in `~/.testcontainers.properties`; (2) `systemProperty("api.version", "1.44")` to override docker-java's 1.32 default; (3) `environment("TESTCONTAINERS_RYUK_DISABLED", "true")` — ryuk bind-mount fails on docker.raw.sock; (4) `resolutionStrategy.eachDependency` to force TC 1.20.6 past Spring Boot BOM's 1.19.8 pin.
 - **Consequences:** CI needs Docker. No manual DB creation step.
+
+### 2026-06-22 — ENG-9: exact-string option match over option-IDs (V1)
+
+- **Context:** MCQ auto-grade needs to know which option the user picked without shipping the correct answer to the client pre-commit (Law 1). Two options: (a) return options as `{optionId, text}` with a server-side correct-id mapping; (b) return bare option strings and have the client send back the picked string for server comparison.
+- **Decision:** (b) exact-string match, case/whitespace-normalized, against the stored `correct_answer`. The existing `/activate` + `/review/next` DTOs already return `List<String>`; option-IDs would change the wire shape, the frontend, and the ENG-8b DTO tests for no V1 grading benefit.
+- **Why it's still Law-1-safe:** the client already HAS all 4 option strings (it rendered them) but is told nothing about which is correct; correctness is decided server-side from the stored card. Sending the picked text back on commit leaks nothing (the user already committed).
+- **Consequences / seam:** model-generated options are assumed distinct (orchestrator already dedupes). If options ever collide after normalization, grading is ambiguous — that's the trigger to move to stable option-IDs. Documented in learnings.md.
+
+### 2026-06-22 — ENG-9: MCQ rating mapping correct→Good(3) / wrong→Again(1), never Easy
+
+- **Context:** Recognition (MCQ) gives the answer among the options — scaffolding that pure recall doesn't. Mapping a correct MCQ to Easy(4) would inflate FSRS stability and under-schedule the concept.
+- **Decision:** correct→Good(3), wrong→Again(1). Hard(2)/Easy(4) are not emitted by the auto-grader. Response-latency-based refinement (e.g. fast-correct → Easy) is a deliberate future seam, not built in ENG-9.
+- **Consequences:** `is_correct` (raw outcome) is the truth; `fsrs_rating` is the versioned interpretation under `grading_scheme_version="mcq-auto-v1"`. A future scheme version can re-map without rewriting history (replay reads raw outcome, never the stored rating).
 
 ### 2026-06-12 — embedded-postgres over Testcontainers for integration tests
 
